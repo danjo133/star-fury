@@ -14,13 +14,19 @@
       overflow: hidden; 
       background: #000; 
       display: flex; 
+      flex-direction: column;
       align-items: center; 
-      justify-content: center;
+      justify-content: flex-start;
       touch-action: none;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
       position: fixed;
+    }
+    @media (orientation: landscape) {
+      html, body {
+        justify-content: center;
+      }
     }
     canvas { 
       display: block;
