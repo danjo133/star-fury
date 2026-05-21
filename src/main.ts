@@ -12,7 +12,6 @@ function scaleCanvas(canvas: HTMLCanvasElement): void {
     const scale = vw / GAME_WIDTH;
     const gameHeight = Math.floor(GAME_HEIGHT * scale);
     const controlsHeight = vh - gameHeight;
-    // If controls area would be too small, shrink game to guarantee space
     const minControlsHeight = 160;
     const finalScale = controlsHeight < minControlsHeight
       ? (vh - minControlsHeight) / GAME_HEIGHT
@@ -23,12 +22,10 @@ function scaleCanvas(canvas: HTMLCanvasElement): void {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
   } else {
-    // Landscape: fit to screen
-    const scaleX = vw / GAME_WIDTH;
-    const scaleY = vh / GAME_HEIGHT;
-    const scale = Math.min(scaleX, scaleY);
-    const width = Math.floor(GAME_WIDTH * scale);
+    // Landscape: fit to screen height, controls go on sides
+    const scale = vh / GAME_HEIGHT;
     const height = Math.floor(GAME_HEIGHT * scale);
+    const width = Math.floor(GAME_WIDTH * scale);
 
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;

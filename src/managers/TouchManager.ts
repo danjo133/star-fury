@@ -36,9 +36,16 @@ export class TouchManager {
   private readonly JOYSTICK_DEAD_ZONE = 15;
   private readonly JOYSTICK_MAX_RADIUS = 60;
 
-  // Controls canvas (separate element for portrait, overlay for landscape)
+  // Portrait: single controls canvas below game
   private controlsCanvas: HTMLCanvasElement | null = null;
   private controlsCtx: CanvasRenderingContext2D | null = null;
+
+  // Landscape: left panel (joystick) and right panel (fire)
+  private leftPanel: HTMLCanvasElement | null = null;
+  private leftCtx: CanvasRenderingContext2D | null = null;
+  private rightPanel: HTMLCanvasElement | null = null;
+  private rightCtx: CanvasRenderingContext2D | null = null;
+
   private joystickCenter: { x: number; y: number } | null = null;
   private joystickPos: { x: number; y: number } | null = null;
 
@@ -66,83 +73,143 @@ export class TouchManager {
 
     if (!this._isMobile) return;
 
-    // Create controls canvas
+    // Portrait controls canvas (below game)
     this.controlsCanvas = document.createElement('canvas');
     this.controlsCanvas.style.display = 'block';
     this.controlsCanvas.style.zIndex = '10';
-    document.body.appendChild(this.controlsCanvas);
     this.controlsCtx = this.controlsCanvas.getContext('2d');
+
+    // Landscape left panel (joystick)
+    this.leftPanel = document.createElement('canvas');
+    this.leftPanel.style.display = 'block';
+    this.leftPanel.style.zIndex = '10';
+    this.leftCtx = this.leftPanel.getContext('2d');
+
+    // Landscape right panel (fire)
+    this.rightPanel = document.createElement('canvas');
+    this.rightPanel.style.display = 'block';
+    this.rightPanel.style.zIndex = '10';
+    this.rightCtx = this.rightPanel.getContext('2d');
 
     this.handleResize();
 
-    // Touch events go on the controls canvas (portrait) or game canvas (landscape)
-    this.controlsCanvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
-    this.controlsCanvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
-    this.controlsCanvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
-    this.controlsCanvas.addEventListener('touchcancel', this.onTouchEnd, { passive: false });
+    // Touch events on all control surfaces
+    const addTouchListeners = (el: HTMLCanvasElement) => {
+      el.addEventListener('touchstart', this.onTouchStart, { passive: false });
+      el.addEventListener('touchmove', this.onTouchMove, { passive: false });
+      el.addEventListener('touchend', this.onTouchEnd, { passive: false });
+      el.addEventListener('touchcancel', this.onTouchEnd, { passive: false });
+    };
 
-    // Also listen on the game canvas for landscape overlay mode
-    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
-    canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
-    canvas.addEventListener('touchcancel', this.onTouchEnd, { passive: false });
+    addTouchListeners(this.controlsCanvas);
+    addTouchListeners(this.leftPanel);
+    addTouchListeners(this.rightPanel);
+
+    // Taps on game canvas in portrait = confirm
+    canvas.addEventListener('touchstart', this.onGameCanvasTap, { passive: false });
 
     window.addEventListener('resize', this.handleResize);
-    this.drawControls();
   }
 
   private handleResize = (): void => {
-    if (!this.controlsCanvas || !this.canvas) return;
+    if (!this.canvas) return;
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     this.isPortrait = vh > vw;
 
     if (this.isPortrait) {
-      // Portrait: controls area goes below the game canvas
-      const gameRect = this.canvas.getBoundingClientRect();
-      const controlsHeight = vh - gameRect.bottom;
-      const controlsWidth = vw;
-
-      this.controlsCanvas.width = controlsWidth * (window.devicePixelRatio || 1);
-      this.controlsCanvas.height = Math.max(controlsHeight, 160) * (window.devicePixelRatio || 1);
-      this.controlsCanvas.style.width = `${controlsWidth}px`;
-      this.controlsCanvas.style.height = `${Math.max(controlsHeight, 160)}px`;
-      this.controlsCanvas.style.position = 'relative';
-      this.controlsCanvas.style.pointerEvents = 'auto';
-
-      if (this.controlsCtx) {
-        this.controlsCtx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
-      }
+      this.setupPortraitLayout();
     } else {
-      // Landscape: overlay on game canvas
-      const gameRect = this.canvas.getBoundingClientRect();
-      this.controlsCanvas.width = gameRect.width * (window.devicePixelRatio || 1);
-      this.controlsCanvas.height = gameRect.height * (window.devicePixelRatio || 1);
-      this.controlsCanvas.style.width = `${gameRect.width}px`;
-      this.controlsCanvas.style.height = `${gameRect.height}px`;
-      this.controlsCanvas.style.position = 'absolute';
-      this.controlsCanvas.style.left = `${gameRect.left}px`;
-      this.controlsCanvas.style.top = `${gameRect.top}px`;
-      this.controlsCanvas.style.pointerEvents = 'none'; // let touches pass through to game canvas
-
-      if (this.controlsCtx) {
-        this.controlsCtx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
-      }
+      this.setupLandscapeLayout();
     }
 
     this.drawControls();
   };
 
-  private getTouchTarget(): HTMLCanvasElement {
-    // In portrait mode, touches come from the controls canvas
-    // In landscape, touches come from the game canvas
-    return this.isPortrait ? this.controlsCanvas! : this.canvas!;
+  private setupPortraitLayout(): void {
+    // Show portrait controls, hide landscape panels
+    this.removeFromDOM(this.leftPanel);
+    this.removeFromDOM(this.rightPanel);
+
+    if (this.controlsCanvas && !this.controlsCanvas.parentNode) {
+      document.body.appendChild(this.controlsCanvas);
+    }
+
+    const gameRect = this.canvas!.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const controlsHeight = Math.max(vh - gameRect.bottom, 160);
+    const controlsWidth = window.innerWidth;
+    const dpr = window.devicePixelRatio || 1;
+
+    this.controlsCanvas!.width = controlsWidth * dpr;
+    this.controlsCanvas!.height = controlsHeight * dpr;
+    this.controlsCanvas!.style.width = `${controlsWidth}px`;
+    this.controlsCanvas!.style.height = `${controlsHeight}px`;
+    this.controlsCanvas!.style.position = 'relative';
+
+    if (this.controlsCtx) {
+      this.controlsCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
   }
+
+  private setupLandscapeLayout(): void {
+    // Show landscape panels, hide portrait controls
+    this.removeFromDOM(this.controlsCanvas);
+
+    const gameRect = this.canvas!.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+
+    // Panels fill the space on either side of the game canvas
+    const sideWidth = Math.floor((window.innerWidth - gameRect.width) / 2);
+
+    // Insert left panel before game canvas, right panel after
+    if (this.leftPanel && !this.leftPanel.parentNode) {
+      this.canvas!.parentNode!.insertBefore(this.leftPanel, this.canvas!);
+    }
+    if (this.rightPanel && !this.rightPanel.parentNode) {
+      if (this.canvas!.nextSibling) {
+        this.canvas!.parentNode!.insertBefore(this.rightPanel, this.canvas!.nextSibling);
+      } else {
+        this.canvas!.parentNode!.appendChild(this.rightPanel);
+      }
+    }
+
+    // Size left panel
+    this.leftPanel!.width = sideWidth * dpr;
+    this.leftPanel!.height = vh * dpr;
+    this.leftPanel!.style.width = `${sideWidth}px`;
+    this.leftPanel!.style.height = `${vh}px`;
+
+    // Size right panel
+    this.rightPanel!.width = sideWidth * dpr;
+    this.rightPanel!.height = vh * dpr;
+    this.rightPanel!.style.width = `${sideWidth}px`;
+    this.rightPanel!.style.height = `${vh}px`;
+
+    if (this.leftCtx) {
+      this.leftCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    if (this.rightCtx) {
+      this.rightCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+  }
+
+  private removeFromDOM(el: HTMLCanvasElement | null): void {
+    if (el && el.parentNode) {
+      el.parentNode.removeChild(el);
+    }
+  }
+
+  private onGameCanvasTap = (e: TouchEvent): void => {
+    e.preventDefault();
+    this.confirmTriggered = true;
+  };
 
   private onTouchStart = (e: TouchEvent): void => {
     e.preventDefault();
-    const target = this.isPortrait ? this.controlsCanvas! : this.canvas!;
+    const target = e.currentTarget as HTMLCanvasElement;
     const rect = target.getBoundingClientRect();
 
     for (let i = 0; i < e.changedTouches.length; i++) {
@@ -150,16 +217,15 @@ export class TouchManager {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      // Ignore touches on wrong target
-      if (this.isPortrait && e.currentTarget !== this.controlsCanvas) {
-        // In portrait, taps on game canvas = confirm only
-        this.confirmTriggered = true;
-        continue;
-      }
-      if (!this.isPortrait && e.currentTarget !== this.canvas) continue;
+      let isJoystick: boolean;
 
-      const halfWidth = rect.width / 2;
-      const isJoystick = x < halfWidth;
+      if (this.isPortrait) {
+        // Left half = joystick, right half = fire
+        isJoystick = x < rect.width / 2;
+      } else {
+        // In landscape, left panel = joystick, right panel = fire
+        isJoystick = target === this.leftPanel;
+      }
 
       this.activeTouches.set(touch.identifier, {
         id: touch.identifier,
@@ -185,7 +251,7 @@ export class TouchManager {
 
   private onTouchMove = (e: TouchEvent): void => {
     e.preventDefault();
-    const target = this.isPortrait ? this.controlsCanvas! : this.canvas!;
+    const target = e.currentTarget as HTMLCanvasElement;
     const rect = target.getBoundingClientRect();
 
     for (let i = 0; i < e.changedTouches.length; i++) {
@@ -277,6 +343,14 @@ export class TouchManager {
   }
 
   private drawControls(): void {
+    if (this.isPortrait) {
+      this.drawPortraitControls();
+    } else {
+      this.drawLandscapeControls();
+    }
+  }
+
+  private drawPortraitControls(): void {
     if (!this.controlsCtx || !this.controlsCanvas) return;
     const ctx = this.controlsCtx;
     const dpr = window.devicePixelRatio || 1;
@@ -285,36 +359,56 @@ export class TouchManager {
 
     ctx.clearRect(0, 0, w, h);
 
-    if (this.isPortrait) {
-      // Portrait mode: draw a proper control panel
-      // Subtle top border
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(w, 0);
-      ctx.stroke();
+    // Subtle top border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w, 0);
+    ctx.stroke();
+
+    // Joystick (left side)
+    this.drawJoystick(ctx, w * 0.22, h * 0.5);
+
+    // Fire button (right side)
+    this.drawFireButton(ctx, w * 0.8, h * 0.5, 40);
+  }
+
+  private drawLandscapeControls(): void {
+    // Draw joystick on left panel
+    if (this.leftCtx && this.leftPanel) {
+      const dpr = window.devicePixelRatio || 1;
+      const w = this.leftPanel.width / dpr;
+      const h = this.leftPanel.height / dpr;
+      this.leftCtx.clearRect(0, 0, w, h);
+      this.drawJoystick(this.leftCtx, w * 0.5, h * 0.55);
     }
 
-    // Joystick
-    const joyX = w * 0.22;
-    const joyY = h * 0.5;
+    // Draw fire button on right panel
+    if (this.rightCtx && this.rightPanel) {
+      const dpr = window.devicePixelRatio || 1;
+      const w = this.rightPanel.width / dpr;
+      const h = this.rightPanel.height / dpr;
+      this.rightCtx.clearRect(0, 0, w, h);
+      this.drawFireButton(this.rightCtx, w * 0.5, h * 0.55, 38);
+    }
+  }
 
+  private drawJoystick(ctx: CanvasRenderingContext2D, defaultX: number, defaultY: number): void {
     if (!this.joystickCenter) {
       // Default position indicator
       ctx.beginPath();
-      ctx.arc(joyX, joyY, this.JOYSTICK_MAX_RADIUS, 0, Math.PI * 2);
+      ctx.arc(defaultX, defaultY, this.JOYSTICK_MAX_RADIUS, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
       ctx.lineWidth = 2;
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.arc(joyX, joyY, 14, 0, Math.PI * 2);
+      ctx.arc(defaultX, defaultY, 14, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
       ctx.fill();
     }
 
-    // Active joystick
     if (this.joystickCenter && this.joystickPos) {
       ctx.beginPath();
       ctx.arc(this.joystickCenter.x, this.joystickCenter.y, this.JOYSTICK_MAX_RADIUS, 0, Math.PI * 2);
@@ -330,14 +424,11 @@ export class TouchManager {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
+  }
 
-    // Fire button
-    const fireX = w * 0.8;
-    const fireY = h * 0.5;
-    const fireRadius = this.isPortrait ? 40 : 35;
-
+  private drawFireButton(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number): void {
     ctx.beginPath();
-    ctx.arc(fireX, fireY, fireRadius, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     if (this.state.shoot) {
       ctx.fillStyle = 'rgba(255, 80, 80, 0.4)';
       ctx.fill();
@@ -351,10 +442,10 @@ export class TouchManager {
     ctx.stroke();
 
     ctx.fillStyle = this.state.shoot ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)';
-    ctx.font = `bold ${this.isPortrait ? 16 : 14}px monospace`;
+    ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('FIRE', fireX, fireY);
+    ctx.fillText('FIRE', x, y);
   }
 
   get up(): boolean {
@@ -388,19 +479,26 @@ export class TouchManager {
   }
 
   destroy(): void {
-    if (this.controlsCanvas) {
-      this.controlsCanvas.removeEventListener('touchstart', this.onTouchStart);
-      this.controlsCanvas.removeEventListener('touchmove', this.onTouchMove);
-      this.controlsCanvas.removeEventListener('touchend', this.onTouchEnd);
-      this.controlsCanvas.removeEventListener('touchcancel', this.onTouchEnd);
-      this.controlsCanvas.remove();
-    }
+    const removeTouchListeners = (el: HTMLCanvasElement | null) => {
+      if (!el) return;
+      el.removeEventListener('touchstart', this.onTouchStart);
+      el.removeEventListener('touchmove', this.onTouchMove);
+      el.removeEventListener('touchend', this.onTouchEnd);
+      el.removeEventListener('touchcancel', this.onTouchEnd);
+    };
+
+    removeTouchListeners(this.controlsCanvas);
+    removeTouchListeners(this.leftPanel);
+    removeTouchListeners(this.rightPanel);
+
     if (this.canvas) {
-      this.canvas.removeEventListener('touchstart', this.onTouchStart);
-      this.canvas.removeEventListener('touchmove', this.onTouchMove);
-      this.canvas.removeEventListener('touchend', this.onTouchEnd);
-      this.canvas.removeEventListener('touchcancel', this.onTouchEnd);
+      this.canvas.removeEventListener('touchstart', this.onGameCanvasTap);
     }
+
+    this.removeFromDOM(this.controlsCanvas);
+    this.removeFromDOM(this.leftPanel);
+    this.removeFromDOM(this.rightPanel);
+
     window.removeEventListener('resize', this.handleResize);
   }
 }
