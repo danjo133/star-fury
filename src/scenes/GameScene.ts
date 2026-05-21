@@ -307,7 +307,7 @@ export class GameScene implements IScene {
         this.player.levelReset();
         this.gameContainer.addChild(this.player.container);
         this.startLevel();
-        this.audio.startMusic('game');
+        this.audio.nextGameTrack();
       } else {
         this.state = 'victory';
         this.stateTimer = 5;
@@ -671,5 +671,20 @@ export class GameScene implements IScene {
     for (let i = toRemove.length - 1; i >= 0; i--) {
       this.scorePopups.splice(toRemove[i], 1);
     }
+  }
+
+  // Dev mode methods
+  devJumpToLevel(index: number): void {
+    this.cleanup();
+    this.levelManager.setLevel(index);
+    this.player.levelReset();
+    this.gameContainer.addChild(this.player.container);
+    this.startLevel();
+    this.audio.startMusic('game');
+  }
+
+  devSkipToBoss(): void {
+    this.spawnSystem.forceComplete();
+    this.startBossIntro();
   }
 }

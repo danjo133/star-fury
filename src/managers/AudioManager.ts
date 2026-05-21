@@ -1,10 +1,13 @@
 import { SIDSynth } from '../audio/SIDSynth';
+import { SIDEmulator } from '../audio/SIDEmulator';
 import { SIDSequencer } from '../audio/SIDSequencer';
-import { GAME_THEME, TITLE_THEME, BOSS_THEME, GAME_OVER_JINGLE } from '../audio/SIDTracks';
+import { SIDFilePlayer } from '../audio/SIDFilePlayer';
+import { GAME_THEME, GAME_THEMES, TITLE_THEME, BOSS_THEME, GAME_OVER_JINGLE } from '../audio/SIDTracks';
 import type { Song } from '../audio/SIDSequencer';
 
 type SoundType = 'shoot' | 'explosion' | 'powerup' | 'hit' | 'boss_hit' | 'menu_select' | 'level_clear';
 type MusicTrack = 'game' | 'title' | 'boss' | 'gameover';
+export type SynthEngine = 'webaudio' | 'sidemulator';
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -12,11 +15,16 @@ export class AudioManager {
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
   private musicPlaying = false;
+  private gameThemeIndex = 0;
 
   // SID music system
   private sidSynth: SIDSynth | null = null;
+  private sidEmulator: SIDEmulator | null = null;
   private sidSequencer: SIDSequencer | null = null;
+  private sidFilePlayer: SIDFilePlayer | null = null;
   private currentTrack: MusicTrack | null = null;
+  private _activeEngine: SynthEngine = 'webaudio';
+  private _playingSIDFile = false;
 
   // SFX deduplication: prevent same sound playing multiple times per frame
   private playedThisFrame: Set<SoundType> = new Set();
@@ -191,19 +199,63 @@ export class AudioManager {
   }
 
   private ensureSIDSynth(): void {
-    if (this.sidSynth) return;
     const ctx = this.ensureContext();
-    this.sidSynth = new SIDSynth(ctx, this.musicGain!);
-    this.sidSequencer = new SIDSequencer(this.sidSynth);
+    if (!this.sidSynth) {
+      this.sidSynth = new SIDSynth(ctx, this.musicGain!);
+    }
+    if (!this.sidEmulator) {
+      this.sidEmulator = new SIDEmulator(ctx, this.musicGain!);
+    }
+    if (!this.sidSequencer) {
+      const engine = this._activeEngine === 'sidemulator' ? this.sidEmulator : this.sidSynth;
+      this.sidSequencer = new SIDSequencer(engine);
+    }
+  }
+
+  /** Toggle between Web Audio synth and real SID emulator */
+  async toggleEngine(): Promise<SynthEngine> {
+    this.ensureContext();
+    this.ensureSIDSynth();
+
+    if (this._activeEngine === 'webaudio') {
+      // Switch to SID emulator
+      if (!this.sidEmulator!.ready) {
+        await this.sidEmulator!.init();
+      }
+      this._activeEngine = 'sidemulator';
+      this.sidSequencer!.setSynth(this.sidEmulator!);
+    } else {
+      // Switch back to Web Audio synth
+      this._activeEngine = 'webaudio';
+      this.sidSequencer!.setSynth(this.sidSynth!);
+    }
+
+    return this._activeEngine;
+  }
+
+  get activeEngine(): SynthEngine {
+    return this._activeEngine;
   }
 
   private getTrackSong(track: MusicTrack): Song {
     switch (track) {
-      case 'game': return GAME_THEME;
+      case 'game': return GAME_THEMES[this.gameThemeIndex];
       case 'title': return TITLE_THEME;
       case 'boss': return BOSS_THEME;
       case 'gameover': return GAME_OVER_JINGLE;
     }
+  }
+
+  /** Advance to the next game theme and start playing it. Returns the theme title. */
+  nextGameTrack(): string {
+    this.gameThemeIndex = (this.gameThemeIndex + 1) % GAME_THEMES.length;
+    this.stopMusic();
+    this.startMusic('game');
+    return GAME_THEMES[this.gameThemeIndex].title;
+  }
+
+  get currentGameThemeTitle(): string {
+    return GAME_THEMES[this.gameThemeIndex].title;
   }
 
   startMusic(track: MusicTrack = 'game'): void {
@@ -245,15 +297,53 @@ export class AudioManager {
     }
   }
 
+  /** Play a .sid file from a URL (stops current music) */
+  async playSIDFile(url: string, subtune = 0): Promise<void> {
+    const ctx = this.ensureContext();
+    this.stopMusic();
+    this.stopSIDFile();
+
+    if (!this.sidFilePlayer) {
+      this.sidFilePlayer = new SIDFilePlayer(ctx, this.musicGain!);
+    }
+    if (!this.sidFilePlayer.ready) {
+      await this.sidFilePlayer.init();
+    }
+
+    await this.sidFilePlayer.loadURL(url, subtune);
+    this.sidFilePlayer.play();
+    this._playingSIDFile = true;
+  }
+
+  stopSIDFile(): void {
+    if (this.sidFilePlayer) {
+      this.sidFilePlayer.stop();
+    }
+    this._playingSIDFile = false;
+  }
+
+  get playingSIDFile(): boolean {
+    return this._playingSIDFile;
+  }
+
   destroy(): void {
     this.stopMusic();
+    this.stopSIDFile();
     if (this.sidSynth) {
       this.sidSynth.destroy();
       this.sidSynth = null;
     }
+    if (this.sidEmulator) {
+      this.sidEmulator.destroy();
+      this.sidEmulator = null;
+    }
     if (this.sidSequencer) {
       this.sidSequencer.destroy();
       this.sidSequencer = null;
+    }
+    if (this.sidFilePlayer) {
+      this.sidFilePlayer.destroy();
+      this.sidFilePlayer = null;
     }
   }
 }

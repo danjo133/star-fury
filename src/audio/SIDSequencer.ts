@@ -1,9 +1,27 @@
 /**
  * Pattern-based music sequencer for the SID synth
  * Plays tracker-style patterns with per-voice note data, effects, and song arrangement
+ * Works with either the Web Audio SIDSynth or the real SID emulator.
  */
 
-import { SIDSynth, SID_ADSR, noteToFreq, type ADSRConfig } from './SIDSynth';
+import { SID_ADSR, noteToFreq, type ADSRConfig } from './SIDSynth';
+
+/** Common interface for voice objects (both SIDSynth and SIDEmulator voices) */
+export interface ISIDVoice {
+  readonly active: boolean;
+  noteOn(freq: number, waveform: OscillatorType | 'pulse', adsr: ADSRConfig, volume?: number, pulseWidth?: number, time?: number): void;
+  noteOff(time?: number): void;
+  setFrequency(freq: number): void;
+  startVibrato(rate?: number, depth?: number): void;
+  setFilter?(freq: number, res: number, type?: BiquadFilterType): void;
+}
+
+/** Common interface for synth engines (SIDSynth and SIDEmulator) */
+export interface ISIDEngine {
+  getVoice(index: number): ISIDVoice;
+  readonly currentTime: number;
+  allNotesOff(): void;
+}
 
 export interface NoteEvent {
   note: string | null;   // Note name like 'C4', null = continue, '---' = note off
@@ -34,7 +52,7 @@ export interface Song {
 }
 
 export class SIDSequencer {
-  private synth: SIDSynth;
+  private synth: ISIDEngine;
   private song: Song | null = null;
   private playing = false;
 
@@ -54,8 +72,26 @@ export class SIDSequencer {
   private arpeggioCounters: number[] = [0, 0, 0];
   private arpeggioNotes: [number, number, number][] = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
 
-  constructor(synth: SIDSynth) {
+  constructor(synth: ISIDEngine) {
     this.synth = synth;
+  }
+
+  /** Switch to a different synth engine (hot-swap) */
+  setSynth(synth: ISIDEngine): void {
+    const wasPlaying = this.playing;
+    const savedSong = this.song;
+    const savedArrangement = this.currentArrangementIndex;
+    const savedRow = this.currentRow;
+
+    this.stop();
+    this.synth = synth;
+
+    if (wasPlaying && savedSong) {
+      this.loadSong(savedSong);
+      this.currentArrangementIndex = savedArrangement;
+      this.currentRow = savedRow;
+      this.play();
+    }
   }
 
   loadSong(song: Song): void {

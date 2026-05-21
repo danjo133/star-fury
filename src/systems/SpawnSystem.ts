@@ -139,4 +139,8 @@ export class SpawnSystem {
     if (this.waves.length === 0) return 0;
     return this.currentWaveIndex / this.waves.length;
   }
+
+  forceComplete(): void {
+    this.allWavesComplete = true;
+  }
 }

@@ -22,6 +22,7 @@ export class Game {
   private lastTime = 0;
   private accumulator = 0;
   private running = false;
+  private devMode = false;
 
   constructor(app: Application) {
     this.app = app;
@@ -44,6 +45,41 @@ export class Game {
     this.input.attachCanvas(this.app.canvas);
     this.showMenu();
     this.app.ticker.add(() => this.gameLoop());
+
+    // Key binding: press 'M' to toggle between synth engines
+    // Key binding: press 'N' to switch game music track
+    // Key binding: press 'O' to toggle dev mode
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyM' && !e.repeat) {
+        this.audio.toggleEngine().then((engine) => {
+          console.log(`Audio engine: ${engine === 'sidemulator' ? 'SID Emulator' : 'Web Audio Synth'}`);
+        });
+      }
+      if (e.code === 'KeyN' && !e.repeat) {
+        const title = this.audio.nextGameTrack();
+        console.log(`Now playing: ${title}`);
+      }
+      if (e.code === 'KeyO' && !e.repeat) {
+        this.devMode = !this.devMode;
+        console.log(`Dev mode: ${this.devMode ? 'ON' : 'OFF'}`);
+      }
+      // Dev mode: number keys 1-9,0 to jump to level, B for boss
+      if (this.devMode && !e.repeat && this.currentScene instanceof GameScene) {
+        const gameScene = this.currentScene as GameScene;
+        const levelKeys: Record<string, number> = {
+          'Digit1': 0, 'Digit2': 1, 'Digit3': 2, 'Digit4': 3, 'Digit5': 4,
+          'Digit6': 5, 'Digit7': 6, 'Digit8': 7, 'Digit9': 8, 'Digit0': 9,
+        };
+        if (e.code in levelKeys) {
+          gameScene.devJumpToLevel(levelKeys[e.code]);
+          console.log(`Dev: jumped to level ${levelKeys[e.code] + 1}`);
+        }
+        if (e.code === 'KeyB') {
+          gameScene.devSkipToBoss();
+          console.log('Dev: skipping to boss');
+        }
+      }
+    });
   }
 
   private gameLoop(): void {

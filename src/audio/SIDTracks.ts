@@ -1,436 +1,1001 @@
 /**
  * SID-style music tracks for STAR FURY
- * Composed in the style of classic C64 shooters (Delta, Armalyte, R-Type)
- * 
- * Voice 1: Lead melody (pulse wave with PWM)
- * Voice 2: Bass line (sawtooth/pulse)  
- * Voice 3: Arpeggios / chords / percussion
+ * 10 unique game themes + title/boss/gameover
+ * Composed in the style of Rob Hubbard & Chris Huelsbeck
  */
 
 import { SID_ADSR, type ADSRConfig } from './SIDSynth';
 import type { Song, Pattern, NoteEvent } from './SIDSequencer';
 
-// Helper to create note events concisely
+// Custom ADSR presets
+const TIGHT: ADSRConfig = { attack: 0.001, decay: 0.04, sustain: 0.0, release: 0.02 };
+const PUNCH: ADSRConfig = { attack: 0.002, decay: 0.08, sustain: 0.2, release: 0.05 };
+const SING: ADSRConfig = { attack: 0.008, decay: 0.15, sustain: 0.6, release: 0.12 };
+const BASS_HIT: ADSRConfig = { attack: 0.002, decay: 0.12, sustain: 0.3, release: 0.06 };
+const ARP_ENV: ADSRConfig = { attack: 0.001, decay: 0.03, sustain: 0.0, release: 0.02 };
+const GHOST: ADSRConfig = { attack: 0.001, decay: 0.02, sustain: 0.0, release: 0.01 };
+
+// Helpers
 function n(note: string | null, waveform?: OscillatorType | 'pulse', adsr?: ADSRConfig, volume?: number, pw?: number): NoteEvent {
   return { note, waveform, adsr, volume, pulseWidth: pw };
 }
-
-function nArp(note: string, semitone1: number, semitone2: number, waveform: OscillatorType | 'pulse' = 'pulse', volume = 0.2): NoteEvent {
-  return {
-    note,
-    waveform,
-    adsr: SID_ADSR.short,
-    volume,
-    pulseWidth: 0.25,
-    effect: { type: 'arpeggio', param1: semitone1, param2: semitone2 },
-  };
+function nArp(note: string, s1: number, s2: number, waveform: OscillatorType | 'pulse' = 'pulse', volume = 0.18): NoteEvent {
+  return { note, waveform, adsr: ARP_ENV, volume, pulseWidth: 0.2, effect: { type: 'arpeggio', param1: s1, param2: s2 } };
 }
 
-// ============================================================
-// TRACK 1: Main Game Theme - "Delta Force"
-// Inspired by Rob Hubbard's Delta - E minor, fast arpeggios,
-// driving octave bass, iconic staccato pulse lead
-// ============================================================
-
-const gameThemePattern0: Pattern = {
-  speed: 4,
-  rows: [
-    // Intro - E minor with half-time bass
-    [n('B4', 'pulse', SID_ADSR.stab, 0.25, 0.25), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [n('---'), null, null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('---'), null, null],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.25, 0.35), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [n('---'), null, null],
-    [n('G4', 'pulse', SID_ADSR.stab, 0.22, 0.4), null, null],
-    [n('---'), null, null],
-    // Am section
-    [n('A4', 'pulse', SID_ADSR.stab, 0.25, 0.25), n('A2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('A3', 3, 7)],
-    [n('---'), null, null],
-    [n('C5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('---'), null, null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.25, 0.35), n('A2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('A3', 3, 7)],
-    [n('---'), null, null],
-    [n('C5', 'pulse', SID_ADSR.stab, 0.22, 0.4), null, null],
-    [n('---'), null, null],
-    // G major
-    [n('D5', 'pulse', SID_ADSR.stab, 0.25, 0.25), n('G2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('G3', 4, 7)],
-    [n('---'), null, null],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('---'), null, null],
-    // D major -> back to Em
-    [n('F#5', 'pulse', SID_ADSR.lead, 0.28, 0.3), n('D2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('D3', 4, 7)],
-    [null, null, null],
-    [n('D5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('---'), null, null],
-    // Resolve Em
-    [n('E5', 'pulse', SID_ADSR.lead, 0.3, 0.25), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [null, null, null],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.22, 0.3), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), null],
-    [n('---'), null, null],
-    [n('G4', 'pulse', SID_ADSR.stab, 0.22, 0.35), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [n('---'), null, null],
-    [n('F#4', 'pulse', SID_ADSR.stab, 0.2, 0.4), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), null],
-    [n('---'), null, null],
-  ],
-};
-
-// Pattern 1: Lead melody (the iconic Delta-style melodic section)
-const gameThemePattern1: Pattern = {
-  speed: 4,
-  rows: [
-    // Em melody - soaring lead
-    [n('E5', 'pulse', SID_ADSR.lead, 0.3, 0.2), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [null, null, null],
-    [n('D5', 'pulse', SID_ADSR.lead, 0.28, 0.25), null, null],
-    [null, null, null],
-    [n('B4', 'pulse', SID_ADSR.lead, 0.28, 0.3), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('B3', 3, 7)],
-    [null, null, null],
-    [n('A4', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    // C major section
-    [n('C5', 'pulse', SID_ADSR.lead, 0.3, 0.2), n('C2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('C3', 4, 7)],
-    [null, null, null],
-    [n('E5', 'pulse', SID_ADSR.lead, 0.28, 0.25), null, null],
-    [null, null, null],
-    [n('G5', 'pulse', SID_ADSR.lead, 0.3, 0.3), n('G2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('G3', 4, 7)],
-    [null, null, null],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.22, 0.35), n('D2', 'sawtooth', SID_ADSR.bass, 0.3), null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    // Descending run
-    [n('D5', 'pulse', SID_ADSR.stab, 0.25, 0.25), n('A2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('A3', 3, 7)],
-    [n('C5', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('A4', 'pulse', SID_ADSR.stab, 0.22, 0.4), null, null],
-    [n('G4', 'pulse', SID_ADSR.stab, 0.22, 0.25), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [n('F#4', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('E4', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('D4', 'pulse', SID_ADSR.stab, 0.22, 0.4), null, null],
-    // Ascending flourish -> resolve
-    [n('E4', 'pulse', SID_ADSR.stab, 0.22, 0.2), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('B3', 4, 7)],
-    [n('F#4', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    [n('G4', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('A4', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('B4', 'pulse', SID_ADSR.lead, 0.3, 0.25), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [n('---'), n('---'), null],
-  ],
-};
-
-// Pattern 2: Intense section - rapid fire staccato
-const gameThemePattern2: Pattern = {
-  speed: 4,
-  rows: [
-    // Rapid octave jumps on lead — bass on downbeats only
-    [n('E5', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [n('E4', 'pulse', SID_ADSR.stab, 0.2, 0.25), null, null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('G5', 'pulse', SID_ADSR.stab, 0.25, 0.35), null, null],
-    [n('B5', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('G2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('G3', 4, 7)],
-    [n('G5', 'pulse', SID_ADSR.stab, 0.2, 0.25), null, null],
-    [n('B5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('D5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    // Am riff
-    [n('A5', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('A2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('A3', 3, 7)],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.2, 0.25), null, null],
-    [n('A5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('C5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    // D -> B (dramatic tension)
-    [n('D5', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('D2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('D3', 4, 7)],
-    [n('A4', 'pulse', SID_ADSR.stab, 0.2, 0.25), null, null],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('D5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    // Resolution and turnaround
-    [n('B4', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('B3', 4, 7)],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.2, 0.25), null, null],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('B5', 'pulse', SID_ADSR.stab, 0.25, 0.35), null, null],
-    // Final 4 - chromatic run up to Em
-    [n('C5', 'pulse', SID_ADSR.stab, 0.22, 0.2), n('C2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('C3', 4, 7)],
-    [n('C#5', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    [n('D5', 'pulse', SID_ADSR.stab, 0.22, 0.3), n('D2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('D3', 4, 7)],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('E5', 'pulse', SID_ADSR.lead, 0.3, 0.2), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), nArp('E3', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, null, null],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.2, 0.25), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('B3', 4, 7)],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.2, 0.3), null, null],
-    [n('F#4', 'pulse', SID_ADSR.stab, 0.2, 0.35), null, null],
-    [n('---'), n('---'), null],
-  ],
-};
-
-// Pattern 3: Breakdown/bridge - half-time feel with sustained notes
-const gameThemePattern3: Pattern = {
-  speed: 4,
-  rows: [
-    // Sustained chords with arpeggio — bass on half notes
-    [n('G5', 'pulse', SID_ADSR.lead, 0.3, 0.2), n('C2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('C3', 4, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, null, null],
-    [n('F#5', 'pulse', SID_ADSR.lead, 0.28, 0.25), n('D2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('D3', 4, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, null, null],
-    [n('E5', 'pulse', SID_ADSR.lead, 0.3, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, null, null],
-    [n('D5', 'pulse', SID_ADSR.lead, 0.28, 0.35), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('B3', 4, 7)],
-    [null, null, null],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    // Second half - pickup into next section
-    [n('G5', 'pulse', SID_ADSR.lead, 0.3, 0.2), n('A2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('A3', 3, 7)],
-    [null, null, null],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('D5', 'pulse', SID_ADSR.lead, 0.28, 0.2), n('G2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('G3', 4, 7)],
-    [null, null, null],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    [n('A4', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    // Build up - rapid ascending
-    [n('B4', 'pulse', SID_ADSR.stab, 0.22, 0.2), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [n('C5', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    [n('D5', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.22, 0.2), n('B2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('B3', 4, 7)],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.22, 0.25), null, null],
-    [n('G5', 'pulse', SID_ADSR.stab, 0.22, 0.3), null, null],
-    [n('A5', 'pulse', SID_ADSR.stab, 0.22, 0.35), null, null],
-  ],
-};
-
-export const GAME_THEME: Song = {
-  title: 'Delta Force',
-  bpm: 160,
-  patterns: [gameThemePattern0, gameThemePattern1, gameThemePattern2, gameThemePattern3],
-  arrangement: [0, 1, 0, 2, 3, 1, 2, 3],
-  loopPoint: 0,
-};
+// Short aliases
+const L = (note: string, vol = 0.28, pw = 0.25) => n(note, 'pulse', PUNCH, vol, pw);
+const Ls = (note: string, vol = 0.22, pw = 0.3) => n(note, 'pulse', TIGHT, vol, pw);
+const Ll = (note: string, vol = 0.3, pw = 0.2) => n(note, 'pulse', SING, vol, pw);
+const B = (note: string, vol = 0.35) => n(note, 'sawtooth', BASS_HIT, vol);
+const Bg = (note: string, vol = 0.15) => n(note, 'sawtooth', GHOST, vol);
+const OFF = n('---');
+const __ = null;
 
 // ============================================================
-// TRACK 2: Title Screen / Menu - "Star Fury"
-// More melodic, slightly slower, builds anticipation
+// GAME THEME 1: "Stellar Pursuit" - E minor, 150 BPM
+// Hubbard Lightforce / Delta feel
 // ============================================================
-
-const titlePattern0: Pattern = {
-  speed: 38,
-  rows: [
-    // Atmospheric intro with arpeggios
-    [n('E4', 'triangle', SID_ADSR.pad, 0.2), n('E2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('E3', 4, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.15), null],
-    [null, null, null],
-    [null, null, null],
-    [n('G4', 'triangle', SID_ADSR.pad, 0.2), n('G2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('G3', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, n('G2', 'sawtooth', SID_ADSR.bass, 0.15), null],
-    [null, null, null],
-    [null, null, null],
-    [n('A4', 'triangle', SID_ADSR.pad, 0.2), n('A2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('A3', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, n('A2', 'sawtooth', SID_ADSR.bass, 0.15), null],
-    [null, null, null],
-    [null, null, null],
-    [n('B4', 'triangle', SID_ADSR.pad, 0.22), n('B2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('B3', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.15), null],
-    [null, null, null],
-    [null, null, null],
-    // Building...
-    [n('C5', 'pulse', SID_ADSR.lead, 0.22, 0.3), n('A2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('A3', 4, 7)],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.15), null],
-    [n('B4', 'pulse', SID_ADSR.lead, 0.2, 0.35), n('G2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('G3', 4, 7)],
-    [null, null, null],
-    [null, n('D2', 'sawtooth', SID_ADSR.bass, 0.15), null],
-    [n('A4', 'pulse', SID_ADSR.lead, 0.22, 0.4), n('F2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('F3', 4, 7)],
-    [null, null, null],
+const g1p0: Pattern = {
+  speed: 3, rows: [
+    [__, B('E2'), nArp('E4', 3, 7)],
+    [__, Bg('E3'), __],
+    [__, B('E2', 0.30), __],
+    [__, Bg('E3'), __],
+    [__, B('E2'), nArp('E4', 3, 7)],
+    [__, Bg('E3'), __],
+    [__, B('E2', 0.28), __],
+    [__, Bg('E3'), __],
+    [__, B('A2'), nArp('A4', 3, 7)],
+    [__, Bg('A3'), __],
+    [__, B('A2', 0.30), __],
+    [__, Bg('A3'), __],
+    [__, B('A2'), nArp('A4', 3, 7)],
+    [__, Bg('A3'), __],
+    [__, B('A2', 0.28), __],
+    [__, Bg('E3'), __],
+    [Ll('E5'), B('C2'), nArp('C4', 4, 7)],
+    [__, Bg('C3'), __],
+    [Ls('D5'), B('C2', 0.30), __],
+    [__, Bg('G3'), __],
+    [Ll('C5', 0.28), B('C2'), nArp('C4', 4, 7)],
+    [__, Bg('C3'), __],
+    [Ls('B4'), B('G2', 0.28), __],
+    [__, Bg('G3'), __],
+    [Ll('B4'), B('B2', 0.38), nArp('B3', 4, 7)],
+    [__, Bg('B3'), __],
+    [Ls('D#5'), B('B2', 0.30), __],
+    [__, Bg('F#3'), __],
+    [L('F#5', 0.28), B('B2'), nArp('B3', 4, 7)],
+    [__, Bg('B3'), __],
+    [Ls('D#5'), B('F#2', 0.28), __],
+    [Ls('B4', 0.18), Bg('B3'), __],
   ],
 };
-
-const titlePattern1: Pattern = {
-  speed: 38,
-  rows: [
-    // Main melody comes in
-    [n('E5', 'pulse', SID_ADSR.lead, 0.25, 0.3), n('A2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('A3', 4, 7)],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.2), null],
-    [n('D5', 'pulse', SID_ADSR.lead, 0.22, 0.35), null, null],
-    [null, null, null],
-    [n('C5', 'pulse', SID_ADSR.lead, 0.2, 0.4), n('A2', 'sawtooth', SID_ADSR.bass, 0.2), nArp('A3', 3, 7)],
-    [null, null, null],
-    [n('B4', 'pulse', SID_ADSR.lead, 0.22, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.25), null],
-    [null, null, null],
-    [null, null, nArp('E3', 4, 7)],
-    [n('A4', 'pulse', SID_ADSR.lead, 0.25, 0.35), n('A2', 'sawtooth', SID_ADSR.bass, 0.25), null],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.2), nArp('A3', 4, 7)],
-    [n('G4', 'pulse', SID_ADSR.lead, 0.22, 0.4), null, null],
-    [null, null, null],
-    [n('A4', 'pulse', SID_ADSR.lead, 0.25, 0.3), n('F2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('F3', 4, 7)],
-    [null, null, null],
-    [null, n('C2', 'sawtooth', SID_ADSR.bass, 0.2), null],
-    [n('B4', 'pulse', SID_ADSR.lead, 0.22, 0.35), null, null],
-    [null, null, null],
-    [n('C5', 'pulse', SID_ADSR.lead, 0.25, 0.3), n('G2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('G3', 4, 7)],
-    [null, null, null],
-    [null, n('D2', 'sawtooth', SID_ADSR.bass, 0.2), null],
-    [n('D5', 'pulse', SID_ADSR.lead, 0.22, 0.4), null, null],
-    [null, null, null],
-    [n('E5', 'pulse', SID_ADSR.lead, 0.3, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 4, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, n('B1', 'sawtooth', SID_ADSR.bass, 0.2), null],
-    [null, null, null],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('E3', 4, 7)],
+const g1p1: Pattern = {
+  speed: 3, rows: [
+    [Ll('B5'), B('E2'), nArp('E4', 3, 7)],
+    [__, Bg('E3'), __],
+    [Ls('A5'), B('E2', 0.28), __],
+    [Ls('G5', 0.2), Bg('B3'), __],
+    [Ll('E5', 0.28), B('E2'), nArp('E4', 3, 7)],
+    [__, Bg('E3'), __],
+    [Ls('F#5'), B('E2', 0.28), __],
+    [Ls('G5', 0.2), Bg('B3'), __],
+    [Ll('A5'), B('A2'), nArp('A4', 3, 7)],
+    [__, Bg('A3'), __],
+    [Ls('G5'), B('A2', 0.28), __],
+    [Ls('E5', 0.2), Bg('E3'), __],
+    [L('C5', 0.25), B('A2'), nArp('A4', 3, 7)],
+    [__, Bg('A3'), __],
+    [Ls('D5'), B('A2', 0.28), __],
+    [Ls('E5', 0.2), Bg('E3'), __],
+    [Ll('G5'), B('C2'), nArp('C4', 4, 7)],
+    [__, Bg('C3'), __],
+    [Ls('A5'), B('C2', 0.28), __],
+    [Ls('B5'), Bg('G3'), __],
+    [Ll('C6'), B('G2'), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('B5'), B('G2', 0.28), __],
+    [Ls('A5', 0.2), Bg('D3'), __],
+    [L('G#5', 0.25), B('B2', 0.38), nArp('B3', 4, 7)],
+    [Ls('A5', 0.2), Bg('B3'), __],
+    [Ls('A#5', 0.2), B('B2', 0.30), __],
+    [Ls('B5'), Bg('F#3'), __],
+    [Ll('B5', 0.32), B('E2', 0.38), nArp('E4', 3, 7)],
+    [__, Bg('E3'), __],
+    [__, B('E2', 0.28), __],
+    [OFF, Bg('B3'), __],
   ],
 };
-
-export const TITLE_THEME: Song = {
-  title: 'Star Fury',
-  bpm: 150,
-  patterns: [titlePattern0, titlePattern1],
-  arrangement: [0, 1, 0, 1],
-  loopPoint: 0,
-};
+const GAME_THEME_1: Song = { title: 'Stellar Pursuit', bpm: 150, patterns: [g1p0, g1p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
 
 // ============================================================
-// TRACK 3: Boss Battle - "Nemesis"
-// Dark, intense, minor key - Hubbard-style aggressive SID
-// Fast chromatic runs, heavy bass, relentless rhythm
+// GAME THEME 2: "Nebula Run" - C minor, 140 BPM
+// Turrican-style majestic pads with driving rhythm
 // ============================================================
-
-const bossPattern0: Pattern = {
-  speed: 4,
-  rows: [
-    // Aggressive E minor staccato with hammering bass (every 2 rows)
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('E3', 3, 6)],
-    [n('---'), null, null],
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('D5', 'sawtooth', SID_ADSR.stab, 0.28), null, null],
-    [n('C5', 'sawtooth', SID_ADSR.stab, 0.3), n('C2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('C3', 3, 7)],
-    [n('---'), null, null],
-    [n('D5', 'sawtooth', SID_ADSR.stab, 0.28), n('C2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('D#5', 'sawtooth', SID_ADSR.stab, 0.28), null, null],
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.3), n('A2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('A3', 3, 7)],
-    [n('---'), null, null],
-    [n('C5', 'sawtooth', SID_ADSR.stab, 0.28), n('A2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('B4', 'sawtooth', SID_ADSR.stab, 0.28), null, null],
-    [n('A4', 'sawtooth', SID_ADSR.stab, 0.3), n('D2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('D3', 3, 6)],
-    [n('---'), null, null],
-    [n('G#4', 'sawtooth', SID_ADSR.stab, 0.28), n('D2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('A4', 'sawtooth', SID_ADSR.stab, 0.28), null, null],
-    // Chromatic ascent
-    [n('B4', 'pulse', SID_ADSR.lead, 0.3, 0.2), n('B2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('B3', 3, 6)],
-    [n('C5', 'pulse', SID_ADSR.stab, 0.25, 0.25), null, null],
-    [n('C#5', 'pulse', SID_ADSR.stab, 0.25, 0.3), n('B2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('D5', 'pulse', SID_ADSR.stab, 0.25, 0.35), null, null],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('E2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('E3', 3, 7)],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.25, 0.25), null, null],
-    [n('F5', 'pulse', SID_ADSR.stab, 0.25, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.25, 0.35), null, null],
-    // Climax
-    [n('G5', 'pulse', SID_ADSR.lead, 0.35, 0.2), n('G2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('G3', 4, 7)],
-    [null, null, null],
-    [n('F#5', 'pulse', SID_ADSR.stab, 0.25, 0.25), n('G2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('E5', 'pulse', SID_ADSR.stab, 0.25, 0.3), null, null],
-    [n('D#5', 'pulse', SID_ADSR.stab, 0.25, 0.2), n('B2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('B3', 4, 7)],
-    [n('B4', 'pulse', SID_ADSR.stab, 0.25, 0.25), null, null],
-    [n('F#4', 'pulse', SID_ADSR.stab, 0.25, 0.3), n('B2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('---'), null, null],
+const g2p0: Pattern = {
+  speed: 3, rows: [
+    [Ll('G5'), B('C2'), nArp('C4', 3, 7)],
+    [__, Bg('C3'), __],
+    [Ls('F5'), B('C2', 0.28), __],
+    [Ls('Eb5', 0.2), Bg('G3'), __],
+    [Ll('C5', 0.28), B('C2'), nArp('C4', 3, 7)],
+    [__, Bg('C3'), __],
+    [Ls('D5'), B('G2', 0.28), __],
+    [Ls('Eb5', 0.2), Bg('G3'), __],
+    [Ll('F5'), B('Ab2'), nArp('Ab4', 4, 7)],
+    [__, Bg('Ab3'), __],
+    [Ls('Eb5'), B('Ab2', 0.28), __],
+    [Ls('D5', 0.2), Bg('Eb3'), __],
+    [Ll('Eb5', 0.28), B('Ab2'), nArp('Ab4', 4, 7)],
+    [__, Bg('Ab3'), __],
+    [Ls('D5'), B('Eb2', 0.28), __],
+    [Ls('C5', 0.2), Bg('Eb3'), __],
+    [Ll('Bb5'), B('Bb2'), nArp('Bb3', 3, 7)],
+    [__, Bg('Bb3'), __],
+    [Ls('Ab5'), B('Bb2', 0.28), __],
+    [Ls('G5', 0.2), Bg('F3'), __],
+    [Ll('F5', 0.28), B('Bb2'), nArp('Bb3', 4, 7)],
+    [__, Bg('Bb3'), __],
+    [Ls('G5'), B('F2', 0.28), __],
+    [Ls('Ab5', 0.2), Bg('F3'), __],
+    [L('G5', 0.28), B('G2', 0.38), nArp('G3', 4, 7)],
+    [Ls('Ab5', 0.2), Bg('G3'), __],
+    [Ls('A5', 0.2), B('G2', 0.30), __],
+    [Ls('Bb5'), Bg('D3'), __],
+    [Ll('G5', 0.32), B('G2', 0.38), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [__, B('G2', 0.28), __],
+    [OFF, Bg('D3'), __],
   ],
 };
-
-const bossPattern1: Pattern = {
-  speed: 4,
-  rows: [
-    // Wild descending runs — bass every 2 rows
-    [n('B5', 'sawtooth', SID_ADSR.stab, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('E3', 3, 6)],
-    [n('A5', 'sawtooth', SID_ADSR.stab, 0.28), null, null],
-    [n('G5', 'sawtooth', SID_ADSR.stab, 0.28), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('F#5', 'sawtooth', SID_ADSR.stab, 0.28), null, null],
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.28), n('C2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('C3', 4, 7)],
-    [n('D5', 'sawtooth', SID_ADSR.stab, 0.25), null, null],
-    [n('C5', 'sawtooth', SID_ADSR.stab, 0.25), n('C2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('B4', 'sawtooth', SID_ADSR.stab, 0.25), null, null],
-    // Power chord section
-    [n('A4', 'sawtooth', SID_ADSR.lead, 0.35), n('A2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('A3', 4, 7)],
-    [null, null, null],
-    [null, n('A2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('---'), null, n('---')],
-    [n('G#4', 'sawtooth', SID_ADSR.lead, 0.35), n('G#2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('G#3', 4, 8)],
-    [null, null, null],
-    [null, n('G#2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('---'), null, n('---')],
-    // Rapid machine-gun notes
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.25), n('E2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('E3', 3, 6)],
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.22), null, null],
-    [n('E5', 'sawtooth', SID_ADSR.stab, 0.25), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('---'), null, null],
-    [n('G5', 'sawtooth', SID_ADSR.stab, 0.25), n('G2', 'sawtooth', SID_ADSR.bass, 0.4), nArp('G3', 3, 7)],
-    [n('G5', 'sawtooth', SID_ADSR.stab, 0.22), null, null],
-    [n('G5', 'sawtooth', SID_ADSR.stab, 0.25), n('G2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('---'), null, null],
-    // Final hit + silence
-    [n('B5', 'sawtooth', SID_ADSR.lead, 0.35), n('B2', 'sawtooth', SID_ADSR.bass, 0.45), nArp('B3', 4, 7)],
-    [null, null, null],
-    [null, n('E2', 'sawtooth', SID_ADSR.bass, 0.4), null],
-    [null, null, null],
-    [n('---'), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), nArp('E3', 3, 7)],
-    [n('---'), null, null],
-    [n('---'), n('E2', 'sawtooth', SID_ADSR.bass, 0.35), null],
-    [n('---'), null, null],
+const g2p1: Pattern = {
+  speed: 3, rows: [
+    [__, B('C2'), nArp('C4', 3, 7)],
+    [__, Bg('C3'), __],
+    [__, B('C2', 0.30), __],
+    [__, Bg('G3'), __],
+    [Ls('Eb5', 0.2), B('C2'), nArp('C4', 3, 7)],
+    [Ls('F5', 0.2), Bg('C3'), __],
+    [Ls('G5'), B('C2', 0.28), __],
+    [Ls('Ab5'), Bg('G3'), __],
+    [Ll('Bb5'), B('Eb2'), nArp('Eb4', 4, 7)],
+    [__, Bg('Eb3'), __],
+    [Ls('Ab5'), B('Eb2', 0.28), __],
+    [Ls('G5', 0.2), Bg('Bb3'), __],
+    [Ll('F5', 0.28), B('Eb2'), nArp('Eb4', 4, 7)],
+    [__, Bg('Eb3'), __],
+    [Ls('Eb5'), B('Bb2', 0.28), __],
+    [Ls('D5', 0.2), Bg('Bb3'), __],
+    [Ll('Eb5'), B('F2'), nArp('F3', 3, 7)],
+    [__, Bg('F3'), __],
+    [Ls('D5'), B('F2', 0.28), __],
+    [Ls('C5', 0.2), Bg('C3'), __],
+    [Ll('D5', 0.28), B('F2'), nArp('F3', 4, 7)],
+    [__, Bg('F3'), __],
+    [Ls('C5'), B('C2', 0.28), __],
+    [Ls('Bb4', 0.2), Bg('C3'), __],
+    [L('C5', 0.28), B('G2', 0.38), nArp('G3', 4, 7)],
+    [Ls('D5'), Bg('G3'), __],
+    [Ls('Eb5'), B('G2', 0.30), __],
+    [Ls('F5'), Bg('D3'), __],
+    [Ll('G5', 0.32), B('C2', 0.38), nArp('C4', 3, 7)],
+    [__, Bg('C3'), __],
+    [__, B('C2', 0.28), __],
+    [OFF, Bg('G3'), __],
   ],
 };
+const GAME_THEME_2: Song = { title: 'Nebula Run', bpm: 140, patterns: [g2p0, g2p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
 
-export const BOSS_THEME: Song = {
-  title: 'Nemesis',
-  bpm: 180,
-  patterns: [bossPattern0, bossPattern1],
-  arrangement: [0, 1, 0, 1],
-  loopPoint: 0,
+// ============================================================
+// GAME THEME 3: "Ion Storm" - D minor, 160 BPM
+// Fast aggressive, Commando-inspired
+// ============================================================
+const g3p0: Pattern = {
+  speed: 3, rows: [
+    [Ls('D5', 0.28), B('D2', 0.38), nArp('D4', 3, 7)],
+    [OFF, Bg('D3'), __],
+    [Ls('D5', 0.25), B('D2'), __],
+    [OFF, Bg('A3'), __],
+    [Ls('F5', 0.28), B('D2', 0.38), nArp('D4', 3, 7)],
+    [Ls('E5'), Bg('D3'), __],
+    [Ls('D5', 0.25), B('A2'), __],
+    [OFF, Bg('A3'), __],
+    [Ls('C5', 0.28), B('Bb2', 0.38), nArp('Bb3', 4, 7)],
+    [OFF, Bg('Bb3'), __],
+    [Ls('D5', 0.25), B('Bb2'), __],
+    [Ls('E5'), Bg('F3'), __],
+    [Ls('F5', 0.28), B('Bb2', 0.38), nArp('Bb3', 4, 7)],
+    [Ls('E5'), Bg('Bb3'), __],
+    [Ls('D5'), B('F2'), __],
+    [Ls('C5', 0.2), Bg('F3'), __],
+    [Ls('A5'), B('C2', 0.38), nArp('C4', 4, 7)],
+    [OFF, Bg('C3'), __],
+    [Ls('G5', 0.25), B('C2'), __],
+    [Ls('F5'), Bg('G3'), __],
+    [Ls('E5', 0.25), B('C2', 0.38), nArp('C4', 4, 7)],
+    [Ls('F5'), Bg('C3'), __],
+    [Ls('G5'), B('G2'), __],
+    [Ls('A5'), Bg('G3'), __],
+    [L('A5'), B('A2', 0.4), nArp('A3', 4, 7)],
+    [Ls('G5'), Bg('A3'), __],
+    [Ls('F5'), B('A2'), __],
+    [Ls('E5'), Bg('E3'), __],
+    [L('D5'), B('A2', 0.4), nArp('A3', 4, 7)],
+    [__, Bg('A3'), __],
+    [__, B('A2'), __],
+    [OFF, Bg('E3'), __],
+  ],
 };
+const g3p1: Pattern = {
+  speed: 3, rows: [
+    [Ls('A5', 0.25), B('D2', 0.38), nArp('D4', 3, 7)],
+    [Ls('G5'), Bg('D3'), __],
+    [Ls('F5'), B('D2'), __],
+    [Ls('E5', 0.2), Bg('A3'), __],
+    [Ls('D5'), B('D2', 0.38), nArp('D4', 3, 7)],
+    [Ls('C#5', 0.2), Bg('D3'), __],
+    [Ls('D5'), B('A2'), __],
+    [Ls('E5', 0.2), Bg('A3'), __],
+    [Ls('F5', 0.25), B('Bb2', 0.38), nArp('Bb3', 4, 7)],
+    [Ls('G5'), Bg('Bb3'), __],
+    [Ls('A5', 0.25), B('Bb2'), __],
+    [Ls('Bb5'), Bg('F3'), __],
+    [L('C6'), B('C2', 0.4), nArp('C4', 4, 7)],
+    [Ls('Bb5'), Bg('C3'), __],
+    [Ls('A5'), B('G2'), __],
+    [Ls('G5'), Bg('G3'), __],
+    [L('F5', 0.28), B('F2', 0.38), nArp('F3', 4, 7)],
+    [Ls('E5', 0.2), Bg('F3'), __],
+    [L('D5', 0.25), B('F2'), __],
+    [Ls('C5', 0.2), Bg('C3'), __],
+    [L('D5', 0.28), B('G2', 0.38), nArp('G3', 4, 7)],
+    [Ls('E5'), Bg('G3'), __],
+    [Ls('F5'), B('G2'), __],
+    [Ls('G5'), Bg('D3'), __],
+    [Ll('A5', 0.32), B('A2', 0.4), nArp('A3', 4, 7)],
+    [__, Bg('A3'), __],
+    [Ls('G#5', 0.2), B('A2'), __],
+    [Ls('A5'), Bg('E3'), __],
+    [Ll('D5', 0.32), B('D2', 0.4), nArp('D4', 3, 7)],
+    [__, Bg('D3'), __],
+    [__, B('D2'), __],
+    [OFF, Bg('A3'), __],
+  ],
+};
+const GAME_THEME_3: Song = { title: 'Ion Storm', bpm: 160, patterns: [g3p0, g3p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
 
 // ============================================================
-// TRACK 4: Game Over - short jingle
+// GAME THEME 4: "Cosmic Drift" - A minor, 130 BPM
+// Melodic, Sanxion-style flowing lead
 // ============================================================
+const g4p0: Pattern = {
+  speed: 4, rows: [
+    [Ll('E5'), B('A2', 0.3), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [Ls('D5'), B('A2', 0.25), __],
+    [Ls('C5', 0.2), Bg('E3', 0.12), __],
+    [Ll('B4', 0.28), B('A2', 0.3), nArp('A3', 4, 7)],
+    [__, Bg('A3'), __],
+    [Ls('A4', 0.2), B('E2', 0.25), __],
+    [Ls('B4', 0.2), Bg('E3', 0.12), __],
+    [Ll('C5'), B('F2', 0.3), nArp('F3', 4, 7)],
+    [__, Bg('F3'), __],
+    [Ls('D5'), B('F2', 0.25), __],
+    [Ls('E5'), Bg('C3', 0.12), __],
+    [Ll('F5'), B('F2', 0.3), nArp('F3', 4, 7)],
+    [__, Bg('F3'), __],
+    [Ls('E5'), B('C2', 0.25), __],
+    [Ls('D5', 0.2), Bg('C3', 0.12), __],
+    [Ll('G5', 0.32), B('G2', 0.3), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('F5'), B('G2', 0.25), __],
+    [Ls('E5', 0.2), Bg('D3', 0.12), __],
+    [Ll('D5', 0.28), B('G2', 0.3), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('E5'), B('D2', 0.25), __],
+    [Ls('F5', 0.2), Bg('D3', 0.12), __],
+    [Ll('E5', 0.32), B('E2', 0.32), nArp('E3', 4, 7)],
+    [__, Bg('E3'), __],
+    [Ls('D5', 0.2), B('E2', 0.25), __],
+    [Ls('C5', 0.2), Bg('B3', 0.12), __],
+    [Ll('B4'), B('E2', 0.32), nArp('E3', 4, 7)],
+    [__, Bg('E3'), __],
+    [__, B('E2', 0.25), __],
+    [__, Bg('B3', 0.12), __],
+  ],
+};
+const g4p1: Pattern = {
+  speed: 4, rows: [
+    [Ll('A5', 0.32), B('A2', 0.3), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [Ls('G5'), B('A2', 0.25), __],
+    [Ls('F5', 0.2), Bg('E3', 0.12), __],
+    [Ll('E5'), B('A2', 0.3), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [Ls('D5'), B('E2', 0.25), __],
+    [Ls('E5', 0.2), Bg('E3', 0.12), __],
+    [Ll('F5'), B('D2', 0.3), nArp('D3', 3, 7)],
+    [__, Bg('D3'), __],
+    [Ls('G5'), B('D2', 0.25), __],
+    [Ls('A5'), Bg('A3', 0.12), __],
+    [Ll('B5', 0.32), B('D2', 0.3), nArp('D3', 3, 7)],
+    [__, Bg('D3'), __],
+    [Ls('A5'), B('A2', 0.25), __],
+    [Ls('G5', 0.2), Bg('A3', 0.12), __],
+    [Ll('C6', 0.32), B('F2', 0.3), nArp('F3', 4, 7)],
+    [__, Bg('F3'), __],
+    [Ls('B5'), B('F2', 0.25), __],
+    [Ls('A5', 0.2), Bg('C3', 0.12), __],
+    [Ll('G5'), B('C2', 0.3), nArp('C4', 4, 7)],
+    [__, Bg('C3'), __],
+    [Ls('F5'), B('G2', 0.25), __],
+    [Ls('E5', 0.2), Bg('G3', 0.12), __],
+    [L('G#5', 0.25), B('E2'), nArp('E3', 4, 7)],
+    [Ls('A5', 0.2), Bg('E3'), __],
+    [Ls('B5', 0.2), B('E2', 0.28), __],
+    [Ls('C6', 0.2), Bg('B3', 0.12), __],
+    [Ll('A5', 0.32), B('A2', 0.32), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [__, B('A2', 0.25), __],
+    [OFF, Bg('E3', 0.12), __],
+  ],
+};
+const GAME_THEME_4: Song = { title: 'Cosmic Drift', bpm: 130, patterns: [g4p0, g4p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
 
+// ============================================================
+// GAME THEME 5: "Plasma Drive" - G minor, 155 BPM
+// Funky bass-driven, Monty on the Run style
+// ============================================================
+const g5p0: Pattern = {
+  speed: 3, rows: [
+    [__, B('G2', 0.38), nArp('G4', 3, 7)],
+    [__, Bg('G3', 0.2), __],
+    [__, B('G2', 0.32), __],
+    [__, Bg('D3'), __],
+    [Ls('Bb4', 0.2), B('G2', 0.38), nArp('G4', 3, 7)],
+    [Ls('C5', 0.2), Bg('G3'), __],
+    [Ls('D5'), B('D2', 0.32), __],
+    [__, Bg('D3'), __],
+    [Ll('Bb5'), B('Bb2'), nArp('Bb3', 4, 7)],
+    [__, Bg('Bb3'), __],
+    [Ls('A5'), B('Bb2', 0.28), __],
+    [Ls('G5', 0.2), Bg('F3'), __],
+    [Ll('F5', 0.28), B('Bb2'), nArp('Bb3', 4, 7)],
+    [__, Bg('Bb3'), __],
+    [Ls('Eb5'), B('F2', 0.28), __],
+    [Ls('D5', 0.2), Bg('F3'), __],
+    [Ll('Eb5'), B('Eb2'), nArp('Eb4', 4, 7)],
+    [__, Bg('Eb3'), __],
+    [Ls('F5'), B('Eb2', 0.28), __],
+    [Ls('G5'), Bg('Bb3'), __],
+    [L('A5', 0.28), B('Eb2'), nArp('Eb4', 3, 7)],
+    [Ls('Bb5'), Bg('Eb3'), __],
+    [Ls('A5'), B('Bb2', 0.28), __],
+    [Ls('G5', 0.2), Bg('Bb3'), __],
+    [L('F#5', 0.28), B('D2', 0.4), nArp('D3', 4, 7)],
+    [Ls('G5'), Bg('D3'), __],
+    [Ls('A5'), B('D2'), __],
+    [Ls('Bb5'), Bg('A3'), __],
+    [Ll('D5', 0.32), B('D2', 0.4), nArp('D3', 4, 7)],
+    [__, Bg('D3'), __],
+    [__, B('D2'), __],
+    [OFF, Bg('A3'), __],
+  ],
+};
+const g5p1: Pattern = {
+  speed: 3, rows: [
+    [Ll('D6'), B('G2', 0.38), nArp('G4', 3, 7)],
+    [__, Bg('G3'), __],
+    [Ls('C6'), B('G2', 0.32), __],
+    [Ls('Bb5', 0.2), Bg('D3'), __],
+    [Ll('A5', 0.28), B('G2', 0.38), nArp('G4', 3, 7)],
+    [__, Bg('G3'), __],
+    [Ls('Bb5'), B('D2', 0.32), __],
+    [Ls('C6'), Bg('D3'), __],
+    [Ll('D6'), B('F2'), nArp('F3', 4, 7)],
+    [__, Bg('F3'), __],
+    [Ls('C6'), B('F2', 0.28), __],
+    [Ls('A5', 0.2), Bg('C3'), __],
+    [Ll('Bb5', 0.28), B('F2'), nArp('F3', 4, 7)],
+    [__, Bg('F3'), __],
+    [Ls('A5'), B('C2', 0.28), __],
+    [Ls('G5', 0.2), Bg('C3'), __],
+    [Ls('F5', 0.25), B('Eb2'), nArp('Eb4', 4, 7)],
+    [Ls('G5'), Bg('Eb3'), __],
+    [Ls('A5'), B('Eb2', 0.28), __],
+    [Ls('Bb5'), Bg('Bb3'), __],
+    [L('C6'), B('C2', 0.38), nArp('C4', 4, 7)],
+    [Ls('Bb5'), Bg('C3'), __],
+    [Ls('A5'), B('G2'), __],
+    [Ls('G5', 0.2), Bg('G3'), __],
+    [L('F#5', 0.28), B('D2', 0.4), nArp('D3', 4, 7)],
+    [Ls('G5'), Bg('D3'), __],
+    [L('A5', 0.28), B('D2'), __],
+    [Ls('Bb5'), Bg('A3'), __],
+    [Ll('G5', 0.32), B('G2', 0.4), nArp('G4', 3, 7)],
+    [__, Bg('G3'), __],
+    [__, B('G2'), __],
+    [OFF, Bg('D3'), __],
+  ],
+};
+const GAME_THEME_5: Song = { title: 'Plasma Drive', bpm: 155, patterns: [g5p0, g5p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// GAME THEME 6: "Void Walker" - F# minor, 145 BPM
+// Dark Phrygian, heavy bass, haunting lead
+// ============================================================
+const g6p0: Pattern = {
+  speed: 3, rows: [
+    [Ll('F#5'), B('F#2', 0.38), nArp('F#3', 3, 6)],
+    [__, Bg('F#3'), __],
+    [Ls('E5'), B('F#2', 0.32), __],
+    [Ls('D5', 0.2), Bg('C#3'), __],
+    [Ll('C#5', 0.28), B('F#2', 0.38), nArp('F#3', 3, 7)],
+    [__, Bg('F#3'), __],
+    [Ls('D5'), B('C#2', 0.32), __],
+    [Ls('E5', 0.2), Bg('C#3'), __],
+    [Ll('G5'), B('G2', 0.38), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('F#5'), B('G2', 0.32), __],
+    [Ls('E5', 0.2), Bg('D3'), __],
+    [Ll('D5', 0.28), B('G2'), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('C#5'), B('D2', 0.32), __],
+    [Ls('D5', 0.2), Bg('D3'), __],
+    [Ll('A5'), B('D2'), nArp('D4', 3, 7)],
+    [__, Bg('D3'), __],
+    [Ls('G5'), B('D2', 0.28), __],
+    [Ls('F#5', 0.2), Bg('A3'), __],
+    [Ll('E5', 0.28), B('A2'), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [Ls('D5'), B('A2', 0.28), __],
+    [Ls('C#5', 0.2), Bg('E3'), __],
+    [L('E#5', 0.28), B('C#2', 0.4), nArp('C#3', 4, 7)],
+    [Ls('F#5'), Bg('C#3'), __],
+    [Ls('G#5'), B('C#2'), __],
+    [Ls('A5'), Bg('G#3'), __],
+    [Ll('F#5', 0.32), B('F#2', 0.4), nArp('F#3', 3, 7)],
+    [__, Bg('F#3'), __],
+    [__, B('F#2', 0.32), __],
+    [OFF, Bg('C#3'), __],
+  ],
+};
+const g6p1: Pattern = {
+  speed: 3, rows: [
+    [__, B('F#2', 0.38), nArp('F#4', 3, 6)],
+    [__, Bg('F#3', 0.2), __],
+    [__, B('F#2', 0.32), __],
+    [__, Bg('C#3'), __],
+    [Ls('C#5', 0.2), B('F#2', 0.38), nArp('F#4', 3, 7)],
+    [Ls('D5', 0.2), Bg('F#3'), __],
+    [Ls('E5'), B('C#2', 0.32), __],
+    [Ls('F#5'), Bg('C#3'), __],
+    [Ll('A5'), B('D2'), nArp('D4', 3, 7)],
+    [__, Bg('D3'), __],
+    [Ls('G5'), B('D2', 0.28), __],
+    [Ls('F#5', 0.2), Bg('A3'), __],
+    [Ll('E5', 0.28), B('D2'), nArp('D4', 4, 7)],
+    [__, Bg('D3'), __],
+    [Ls('D5'), B('A2', 0.28), __],
+    [Ls('C#5', 0.2), Bg('A3'), __],
+    [L('B5', 0.28), B('B2', 0.38), nArp('B3', 3, 7)],
+    [Ls('A5'), Bg('B3'), __],
+    [Ls('G5'), B('B2', 0.32), __],
+    [Ls('F#5', 0.2), Bg('F#3'), __],
+    [L('E5', 0.28), B('E2', 0.38), nArp('E3', 4, 7)],
+    [Ls('F#5'), Bg('E3'), __],
+    [Ls('G5'), B('E2', 0.32), __],
+    [Ls('A5'), Bg('B3'), __],
+    [Ll('C#6', 0.32), B('C#2', 0.4), nArp('C#3', 4, 7)],
+    [__, Bg('C#3'), __],
+    [Ls('B5'), B('C#2'), __],
+    [Ls('A5', 0.2), Bg('G#3'), __],
+    [Ll('F#5', 0.32), B('F#2', 0.4), nArp('F#3', 3, 7)],
+    [__, Bg('F#3'), __],
+    [__, B('F#2', 0.32), __],
+    [OFF, Bg('C#3'), __],
+  ],
+};
+const GAME_THEME_6: Song = { title: 'Void Walker', bpm: 145, patterns: [g6p0, g6p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// GAME THEME 7: "Chrome Horizon" - B minor, 148 BPM
+// Heroic with major lift, Great Giana Sisters vibe
+// ============================================================
+const g7p0: Pattern = {
+  speed: 3, rows: [
+    [Ll('F#5'), B('B2'), nArp('B3', 3, 7)],
+    [__, Bg('B3'), __],
+    [Ls('E5'), B('B2', 0.28), __],
+    [Ls('D5', 0.2), Bg('F#3'), __],
+    [Ll('B4', 0.28), B('B2'), nArp('B3', 4, 7)],
+    [__, Bg('B3'), __],
+    [Ls('C#5'), B('F#2', 0.28), __],
+    [Ls('D5', 0.2), Bg('F#3'), __],
+    [Ll('G5'), B('G2'), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('F#5'), B('G2', 0.28), __],
+    [Ls('E5', 0.2), Bg('D3'), __],
+    [Ll('D5', 0.28), B('G2'), nArp('G3', 4, 7)],
+    [__, Bg('G3'), __],
+    [Ls('E5'), B('D2', 0.28), __],
+    [Ls('F#5', 0.2), Bg('D3'), __],
+    [Ll('A5'), B('A2'), nArp('A3', 4, 7)],
+    [__, Bg('A3'), __],
+    [Ls('G5'), B('A2', 0.28), __],
+    [Ls('F#5', 0.2), Bg('E3'), __],
+    [Ll('E5', 0.28), B('E2'), nArp('E3', 4, 7)],
+    [__, Bg('E3'), __],
+    [Ls('F#5'), B('E2', 0.28), __],
+    [Ls('G5', 0.2), Bg('B3'), __],
+    [L('A#5', 0.28), B('F#2', 0.4), nArp('F#3', 4, 7)],
+    [Ls('B5'), Bg('F#3'), __],
+    [Ls('C#6'), B('F#2'), __],
+    [Ls('D6'), Bg('C#3'), __],
+    [Ll('B5', 0.32), B('B2', 0.38), nArp('B3', 3, 7)],
+    [__, Bg('B3'), __],
+    [__, B('B2', 0.28), __],
+    [OFF, Bg('F#3'), __],
+  ],
+};
+const g7p1: Pattern = {
+  speed: 3, rows: [
+    [Ll('D6', 0.32), B('D2'), nArp('D4', 4, 7)],
+    [__, Bg('D3'), __],
+    [Ls('C#6'), B('D2', 0.28), __],
+    [Ls('B5', 0.2), Bg('A3'), __],
+    [Ll('A5'), B('D2'), nArp('D4', 4, 7)],
+    [__, Bg('D3'), __],
+    [Ls('G5'), B('A2', 0.28), __],
+    [Ls('F#5', 0.2), Bg('A3'), __],
+    [Ll('E5'), B('E2'), nArp('E3', 4, 7)],
+    [__, Bg('E3'), __],
+    [Ls('F#5'), B('E2', 0.28), __],
+    [Ls('G5'), Bg('B3'), __],
+    [L('A5', 0.28), B('E2'), nArp('E3', 4, 7)],
+    [Ls('B5'), Bg('E3'), __],
+    [Ls('C#6'), B('B2', 0.28), __],
+    [Ls('D6'), Bg('B3'), __],
+    [Ls('F#5', 0.25), B('G2'), nArp('G3', 4, 7)],
+    [Ls('G5'), Bg('G3'), __],
+    [Ls('A5'), B('G2', 0.28), __],
+    [Ls('B5'), Bg('D3'), __],
+    [L('A5', 0.28), B('A2'), nArp('A3', 4, 7)],
+    [Ls('G5'), Bg('A3'), __],
+    [Ls('F#5'), B('A2', 0.28), __],
+    [Ls('E5', 0.2), Bg('E3'), __],
+    [L('F#5', 0.28), B('F#2', 0.4), nArp('F#3', 4, 7)],
+    [Ls('G5'), Bg('F#3'), __],
+    [Ls('A5'), B('F#2'), __],
+    [Ls('A#5'), Bg('C#3'), __],
+    [Ll('B5', 0.32), B('B2', 0.4), nArp('B3', 3, 7)],
+    [__, Bg('B3'), __],
+    [__, B('B2', 0.28), __],
+    [OFF, Bg('F#3'), __],
+  ],
+};
+const GAME_THEME_7: Song = { title: 'Chrome Horizon', bpm: 148, patterns: [g7p0, g7p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// GAME THEME 8: "Binary Star" - F minor, 165 BPM
+// Frantic, Hubbard "Thing on a Spring" energy
+// ============================================================
+const g8p0: Pattern = {
+  speed: 3, rows: [
+    [Ls('F5', 0.28), B('F2', 0.38), nArp('F3', 3, 7)],
+    [OFF, Bg('F3', 0.2), __],
+    [Ls('Ab5', 0.25), B('F2'), __],
+    [OFF, Bg('C3'), __],
+    [Ls('G5', 0.25), B('F2', 0.38), nArp('F3', 3, 7)],
+    [Ls('Ab5'), Bg('F3'), __],
+    [Ls('Bb5', 0.25), B('C2'), __],
+    [OFF, Bg('C3'), __],
+    [Ls('C6', 0.28), B('Db2', 0.38), nArp('Db3', 4, 7)],
+    [OFF, Bg('Db3', 0.2), __],
+    [Ls('Bb5', 0.25), B('Db2'), __],
+    [Ls('Ab5'), Bg('Ab3'), __],
+    [Ls('G5', 0.25), B('Db2', 0.38), nArp('Db3', 4, 7)],
+    [Ls('F5'), Bg('Db3'), __],
+    [Ls('Eb5'), B('Ab2'), __],
+    [Ls('F5', 0.2), Bg('Ab3'), __],
+    [L('Bb5'), B('Bb2', 0.38), nArp('Bb3', 3, 7)],
+    [OFF, Bg('Bb3'), __],
+    [Ls('Ab5'), B('Bb2', 0.32), __],
+    [Ls('G5'), Bg('F3'), __],
+    [L('F5', 0.28), B('Bb2', 0.38), nArp('Bb3', 4, 7)],
+    [Ls('G5'), Bg('Bb3'), __],
+    [Ls('Ab5'), B('F2', 0.32), __],
+    [Ls('Bb5'), Bg('F3'), __],
+    [L('C6'), B('C2', 0.4), nArp('C3', 4, 7)],
+    [Ls('Bb5'), Bg('C3'), __],
+    [Ls('Ab5'), B('C2'), __],
+    [Ls('G5'), Bg('G3'), __],
+    [Ll('F5', 0.32), B('F2', 0.4), nArp('F3', 3, 7)],
+    [__, Bg('F3'), __],
+    [__, B('F2'), __],
+    [OFF, Bg('C3'), __],
+  ],
+};
+const g8p1: Pattern = {
+  speed: 3, rows: [
+    [Ls('C6', 0.25), B('F2', 0.38), nArp('F3', 3, 7)],
+    [Ls('Bb5'), Bg('F3'), __],
+    [Ls('Ab5'), B('F2', 0.32), __],
+    [Ls('G5', 0.2), Bg('C3'), __],
+    [Ls('F5'), B('F2', 0.38), nArp('F3', 3, 7)],
+    [Ls('Eb5', 0.2), Bg('F3'), __],
+    [Ls('Db5', 0.2), B('C2', 0.32), __],
+    [Ls('C5', 0.2), Bg('C3'), __],
+    [Ls('Db5'), B('Db2', 0.38), nArp('Db3', 4, 7)],
+    [Ls('Eb5'), Bg('Db3'), __],
+    [Ls('F5'), B('Db2', 0.32), __],
+    [Ls('G5'), Bg('Ab3'), __],
+    [Ls('Ab5', 0.25), B('Ab2', 0.38), nArp('Ab3', 4, 7)],
+    [Ls('Bb5'), Bg('Ab3'), __],
+    [Ls('C6', 0.25), B('Ab2', 0.32), __],
+    [Ls('Db6'), Bg('Eb3'), __],
+    [L('Eb6'), B('Eb2', 0.38), nArp('Eb3', 4, 7)],
+    [Ls('Db6'), Bg('Eb3'), __],
+    [Ls('C6'), B('Eb2', 0.32), __],
+    [Ls('Bb5'), Bg('Bb3'), __],
+    [L('Ab5', 0.28), B('Bb2'), nArp('Bb3', 3, 7)],
+    [Ls('Bb5'), Bg('Bb3'), __],
+    [Ls('C6'), B('F2', 0.32), __],
+    [Ls('Db6'), Bg('F3'), __],
+    [Ll('C6', 0.32), B('C2', 0.4), nArp('C3', 4, 7)],
+    [__, Bg('C3'), __],
+    [Ls('B5', 0.2), B('C2'), __],
+    [Ls('C6'), Bg('G3'), __],
+    [Ll('F5', 0.32), B('F2', 0.4), nArp('F3', 3, 7)],
+    [__, Bg('F3'), __],
+    [__, B('F2'), __],
+    [OFF, Bg('C3'), __],
+  ],
+};
+const GAME_THEME_8: Song = { title: 'Binary Star', bpm: 165, patterns: [g8p0, g8p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// GAME THEME 9: "Dark Matter" - C# minor, 138 BPM
+// Moody, slower, Huelsbeck "R-Type" brooding atmosphere
+// ============================================================
+const g9p0: Pattern = {
+  speed: 4, rows: [
+    [Ll('G#5'), B('C#2', 0.32), nArp('C#3', 3, 7)],
+    [__, Bg('C#3'), __],
+    [Ls('F#5'), B('C#2', 0.25), __],
+    [__, Bg('G#3', 0.12), __],
+    [Ll('E5', 0.28), B('C#2', 0.32), nArp('C#3', 4, 7)],
+    [__, Bg('C#3'), __],
+    [Ls('D#5'), B('G#2', 0.25), __],
+    [Ls('E5', 0.2), Bg('G#3', 0.12), __],
+    [Ll('F#5'), B('A2', 0.32), nArp('A3', 4, 7)],
+    [__, Bg('A3'), __],
+    [Ls('E5'), B('A2', 0.25), __],
+    [__, Bg('E3', 0.12), __],
+    [Ll('D#5', 0.28), B('A2', 0.32), nArp('A3', 4, 7)],
+    [__, Bg('A3'), __],
+    [Ls('C#5'), B('E2', 0.25), __],
+    [Ls('B4', 0.2), Bg('E3', 0.12), __],
+    [Ll('B5', 0.32), B('B2', 0.32), nArp('B3', 3, 7)],
+    [__, Bg('B3'), __],
+    [Ls('A5'), B('B2', 0.25), __],
+    [__, Bg('F#3', 0.12), __],
+    [Ll('G#5'), B('B2', 0.32), nArp('B3', 4, 7)],
+    [__, Bg('B3'), __],
+    [Ls('F#5'), B('F#2', 0.25), __],
+    [Ls('E5', 0.2), Bg('F#3', 0.12), __],
+    [L('G#5', 0.25), B('G#2'), nArp('G#3', 4, 7)],
+    [Ls('A5', 0.2), Bg('G#3'), __],
+    [Ls('B5', 0.2), B('G#2', 0.28), __],
+    [Ls('C#6', 0.2), Bg('D#3', 0.12), __],
+    [Ll('C#5', 0.32), B('C#2'), nArp('C#3', 3, 7)],
+    [__, Bg('C#3'), __],
+    [__, B('C#2', 0.25), __],
+    [__, Bg('G#3', 0.12), __],
+  ],
+};
+const g9p1: Pattern = {
+  speed: 4, rows: [
+    [__, B('C#2', 0.32), nArp('C#4', 3, 7)],
+    [__, Bg('C#3'), __],
+    [__, B('C#2', 0.25), __],
+    [__, Bg('G#3', 0.12), __],
+    [Ls('E5', 0.2), B('C#2', 0.32), nArp('C#4', 4, 7)],
+    [Ls('F#5', 0.2), Bg('C#3'), __],
+    [Ls('G#5'), B('G#2', 0.25), __],
+    [Ls('A5'), Bg('G#3', 0.12), __],
+    [Ll('B5'), B('E2', 0.32), nArp('E3', 4, 7)],
+    [__, Bg('E3'), __],
+    [Ls('A5'), B('E2', 0.25), __],
+    [Ls('G#5', 0.2), Bg('B3', 0.12), __],
+    [Ll('F#5', 0.28), B('E2', 0.32), nArp('E3', 4, 7)],
+    [__, Bg('E3'), __],
+    [Ls('E5'), B('B2', 0.25), __],
+    [Ls('D#5', 0.2), Bg('B3', 0.12), __],
+    [Ll('E5'), B('F#2', 0.32), nArp('F#3', 3, 7)],
+    [__, Bg('F#3'), __],
+    [Ls('D#5'), B('F#2', 0.25), __],
+    [Ls('C#5', 0.2), Bg('C#3', 0.12), __],
+    [Ll('D#5', 0.28), B('F#2', 0.32), nArp('F#3', 4, 7)],
+    [__, Bg('F#3'), __],
+    [Ls('C#5'), B('C#2', 0.25), __],
+    [Ls('B4', 0.2), Bg('C#3', 0.12), __],
+    [L('B#5', 0.25), B('G#2'), nArp('G#3', 4, 7)],
+    [Ls('C#6', 0.2), Bg('G#3'), __],
+    [Ls('D#6', 0.2), B('G#2', 0.28), __],
+    [Ls('E6', 0.2), Bg('D#3', 0.12), __],
+    [Ll('C#5', 0.32), B('C#2'), nArp('C#3', 3, 7)],
+    [__, Bg('C#3'), __],
+    [__, B('C#2', 0.25), __],
+    [OFF, Bg('G#3', 0.12), __],
+  ],
+};
+const GAME_THEME_9: Song = { title: 'Dark Matter', bpm: 138, patterns: [g9p0, g9p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// GAME THEME 10: "Supernova" - A minor, 175 BPM
+// All-out fastest track, Hubbard high BPM energy
+// ============================================================
+const g10p0: Pattern = {
+  speed: 3, rows: [
+    [Ls('E5', 0.28), B('A2', 0.4), nArp('A3', 3, 7)],
+    [OFF, Bg('A3', 0.2), __],
+    [Ls('E5', 0.25), B('A2'), __],
+    [Ls('F5'), Bg('E3'), __],
+    [Ls('G5', 0.28), B('A2', 0.4), nArp('A3', 3, 7)],
+    [OFF, Bg('A3'), __],
+    [Ls('A5', 0.25), B('E2'), __],
+    [Ls('G5'), Bg('E3'), __],
+    [Ls('F5', 0.28), B('F2', 0.4), nArp('F3', 4, 7)],
+    [OFF, Bg('F3', 0.2), __],
+    [Ls('E5', 0.25), B('F2'), __],
+    [Ls('D5'), Bg('C3'), __],
+    [Ls('C5', 0.25), B('F2', 0.4), nArp('F3', 4, 7)],
+    [Ls('D5'), Bg('F3'), __],
+    [Ls('E5', 0.25), B('C2'), __],
+    [Ls('F5'), Bg('C3'), __],
+    [L('G5'), B('G2', 0.4), nArp('G3', 4, 7)],
+    [OFF, Bg('G3'), __],
+    [Ls('F5'), B('G2'), __],
+    [Ls('E5'), Bg('D3'), __],
+    [L('D5', 0.28), B('G2', 0.4), nArp('G3', 4, 7)],
+    [Ls('E5'), Bg('G3'), __],
+    [Ls('F5'), B('D2'), __],
+    [Ls('G5'), Bg('D3'), __],
+    [L('A5'), B('E2', 0.42), nArp('E3', 4, 7)],
+    [Ls('G#5'), Bg('E3'), __],
+    [Ls('A5', 0.25), B('E2'), __],
+    [Ls('B5'), Bg('B3'), __],
+    [Ll('A5'), B('A2', 0.42), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [__, B('A2'), __],
+    [OFF, Bg('E3'), __],
+  ],
+};
+const g10p1: Pattern = {
+  speed: 3, rows: [
+    [Ls('A5', 0.25), B('A2', 0.4), nArp('A3', 3, 7)],
+    [Ls('B5'), Bg('A3'), __],
+    [Ls('C6', 0.25), B('A2'), __],
+    [Ls('B5'), Bg('E3'), __],
+    [Ls('A5', 0.25), B('A2', 0.4), nArp('A3', 3, 7)],
+    [Ls('G5'), Bg('A3'), __],
+    [Ls('F5'), B('E2'), __],
+    [Ls('E5', 0.2), Bg('E3'), __],
+    [Ls('D5'), B('D2', 0.4), nArp('D3', 3, 7)],
+    [Ls('E5'), Bg('D3'), __],
+    [Ls('F5'), B('D2'), __],
+    [Ls('G5'), Bg('A3'), __],
+    [Ls('A5', 0.25), B('D2', 0.4), nArp('D3', 4, 7)],
+    [Ls('B5'), Bg('D3'), __],
+    [Ls('C6', 0.25), B('A2'), __],
+    [Ls('D6'), Bg('A3'), __],
+    [L('E6'), B('E2', 0.4), nArp('E3', 4, 7)],
+    [Ls('D6'), Bg('E3'), __],
+    [Ls('C6'), B('E2'), __],
+    [Ls('B5'), Bg('B3'), __],
+    [L('A5', 0.28), B('F2', 0.38), nArp('F3', 4, 7)],
+    [Ls('G5'), Bg('F3'), __],
+    [Ls('F5'), B('C2'), __],
+    [Ls('E5', 0.2), Bg('C3'), __],
+    [L('G#5', 0.28), B('E2', 0.42), nArp('E3', 4, 7)],
+    [Ls('A5'), Bg('E3'), __],
+    [Ls('B5', 0.25), B('E2'), __],
+    [Ls('C6'), Bg('B3'), __],
+    [Ll('A5'), B('A2', 0.42), nArp('A3', 3, 7)],
+    [__, Bg('A3'), __],
+    [__, B('A2'), __],
+    [OFF, Bg('E3'), __],
+  ],
+};
+const GAME_THEME_10: Song = { title: 'Supernova', bpm: 175, patterns: [g10p0, g10p1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// ALL GAME THEMES - exported as array for cycling
+// ============================================================
+export const GAME_THEMES: Song[] = [
+  GAME_THEME_1, GAME_THEME_2, GAME_THEME_3, GAME_THEME_4, GAME_THEME_5,
+  GAME_THEME_6, GAME_THEME_7, GAME_THEME_8, GAME_THEME_9, GAME_THEME_10,
+];
+export const GAME_THEME = GAME_THEME_1; // backward compat
+
+// ============================================================
+// TITLE THEME: "Star Fury" - A minor, 120 BPM
+// ============================================================
+const tp0: Pattern = {
+  speed: 5, rows: [
+    [__, B('A2', 0.25), nArp('A3', 4, 7)],
+    [__, __, __],
+    [__, Bg('E3', 0.12), __],
+    [__, __, __],
+    [__, B('A2', 0.22), nArp('A3', 3, 7)],
+    [__, __, __],
+    [__, Bg('A3', 0.12), __],
+    [__, __, __],
+    [__, B('F2', 0.25), nArp('F3', 4, 7)],
+    [__, __, __],
+    [__, Bg('C3', 0.12), __],
+    [__, __, __],
+    [__, B('F2', 0.22), nArp('F3', 4, 7)],
+    [__, __, __],
+    [__, Bg('F3', 0.12), __],
+    [__, __, __],
+    [Ll('E5', 0.25), B('G2', 0.25), nArp('G3', 4, 7)],
+    [__, __, __],
+    [__, Bg('D3', 0.12), __],
+    [__, __, __],
+    [__, B('G2', 0.22), __],
+    [__, __, __],
+    [__, Bg('G3', 0.12), __],
+    [__, __, __],
+    [Ll('G#4', 0.28), B('E2', 0.28), nArp('E3', 4, 7)],
+    [__, __, __],
+    [__, Bg('B3', 0.12), __],
+    [__, __, __],
+    [Ls('B4'), B('E2', 0.25), __],
+    [__, __, __],
+    [__, Bg('E3', 0.12), __],
+    [__, __, __],
+  ],
+};
+const tp1: Pattern = {
+  speed: 5, rows: [
+    [Ll('E5'), B('A2', 0.3), nArp('A3', 3, 7)],
+    [__, Bg('A3', 0.12), __],
+    [Ls('D5'), __, __],
+    [__, Bg('E3', 0.12), __],
+    [Ll('C5', 0.28), B('A2', 0.28), nArp('A3', 4, 7)],
+    [__, Bg('A3', 0.12), __],
+    [Ls('B4'), __, __],
+    [Ls('C5', 0.2), Bg('E3', 0.12), __],
+    [Ll('A5'), B('F2', 0.3), nArp('F3', 4, 7)],
+    [__, Bg('F3', 0.12), __],
+    [Ls('G5'), __, __],
+    [__, Bg('C3', 0.12), __],
+    [Ll('F5', 0.28), B('F2', 0.28), nArp('F3', 4, 7)],
+    [__, Bg('F3', 0.12), __],
+    [Ls('E5'), __, __],
+    [Ls('D5', 0.2), Bg('C3', 0.12), __],
+    [Ll('D5', 0.28), B('D2', 0.3), nArp('D3', 3, 7)],
+    [__, Bg('D3', 0.12), __],
+    [Ls('C5'), __, __],
+    [__, Bg('A3', 0.12), __],
+    [Ll('A4', 0.28), B('D2', 0.25), nArp('D3', 3, 7)],
+    [__, Bg('D3', 0.12), __],
+    [__, __, __],
+    [Ls('B4', 0.2), Bg('A3', 0.12), __],
+    [Ll('C5'), B('E2', 0.32), nArp('E3', 4, 7)],
+    [__, Bg('E3', 0.12), __],
+    [Ls('B4'), __, __],
+    [__, Bg('B3', 0.12), __],
+    [Ll('G#4'), B('E2', 0.28), nArp('E3', 4, 7)],
+    [__, Bg('E3', 0.12), __],
+    [__, __, __],
+    [__, Bg('B3', 0.12), __],
+  ],
+};
+export const TITLE_THEME: Song = { title: 'Star Fury', bpm: 120, patterns: [tp0, tp1], arrangement: [0, 0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// BOSS THEME: "Wrath Machine" - E Phrygian, 170 BPM
+// ============================================================
+const bp0: Pattern = {
+  speed: 3, rows: [
+    [Ls('E5'), B('E2', 0.4), nArp('E3', 3, 6)],
+    [OFF, Bg('E3', 0.2), __],
+    [Ls('E5', 0.28), B('E2'), __],
+    [OFF, Bg('B3'), __],
+    [Ls('D5', 0.25), B('E2', 0.4), nArp('E3', 3, 7)],
+    [Ls('D#5'), Bg('E3'), __],
+    [Ls('E5', 0.28), B('E2'), __],
+    [OFF, Bg('B3'), __],
+    [Ls('F5'), B('F2', 0.4), nArp('F3', 4, 7)],
+    [OFF, Bg('F3', 0.2), __],
+    [Ls('E5', 0.25), B('F2'), __],
+    [Ls('C5'), Bg('C3'), __],
+    [Ls('F5', 0.28), B('F2', 0.4), nArp('F3', 4, 7)],
+    [Ls('E5'), Bg('F3'), __],
+    [Ls('D5'), B('C2'), __],
+    [Ls('C5', 0.2), Bg('C3'), __],
+    [Ls('A5'), B('A2', 0.4), nArp('A3', 3, 7)],
+    [OFF, Bg('A3', 0.2), __],
+    [Ls('G5', 0.25), B('A2'), __],
+    [Ls('E5'), Bg('E3'), __],
+    [Ls('A5', 0.28), B('A2', 0.4), nArp('A3', 3, 7)],
+    [Ls('B5'), Bg('A3'), __],
+    [Ls('C6'), B('A2'), __],
+    [Ls('B5', 0.2), Bg('E3'), __],
+    [L('D#5'), B('B2', 0.42), nArp('B3', 4, 7)],
+    [Ls('E5'), Bg('B3', 0.2), __],
+    [Ls('F5'), B('B2'), __],
+    [Ls('F#5'), Bg('F#3'), __],
+    [L('G5'), B('B2', 0.42), nArp('B3', 4, 8)],
+    [Ls('F#5'), Bg('B3'), __],
+    [Ls('F5'), B('B2'), __],
+    [Ls('E5'), Bg('F#3'), __],
+  ],
+};
+const bp1: Pattern = {
+  speed: 3, rows: [
+    [Ls('B5', 0.28), B('E2', 0.4), nArp('E3', 3, 6)],
+    [Ls('A5', 0.25), Bg('E3'), __],
+    [Ls('G5', 0.25), B('E2'), __],
+    [Ls('F#5'), Bg('B3'), __],
+    [Ls('E5', 0.25), B('E2', 0.4), nArp('E3', 3, 7)],
+    [Ls('D5'), Bg('E3'), __],
+    [Ls('C5'), B('E2'), __],
+    [Ls('B4', 0.2), Bg('B3'), __],
+    [Ls('C5'), B('A2', 0.4), nArp('A3', 3, 7)],
+    [Ls('C#5'), Bg('A3'), __],
+    [Ls('D5'), B('A2'), __],
+    [Ls('D#5'), Bg('E3'), __],
+    [Ls('E5', 0.25), B('A2', 0.4), nArp('A3', 3, 7)],
+    [Ls('F5'), Bg('A3'), __],
+    [Ls('F#5'), B('E2'), __],
+    [Ls('G5'), Bg('E3'), __],
+    [L('G5'), B('C2', 0.4), nArp('C3', 4, 7)],
+    [Ls('E4', 0.2), Bg('C3'), __],
+    [L('A5', 0.28), B('C2'), __],
+    [Ls('F4', 0.2), Bg('G3'), __],
+    [L('B5'), B('D2', 0.4), nArp('D3', 3, 7)],
+    [Ls('G4', 0.2), Bg('D3'), __],
+    [L('A5', 0.28), B('D2'), __],
+    [Ls('F#4', 0.2), Bg('A3'), __],
+    [Ll('E5'), B('B2', 0.42), nArp('B3', 4, 7)],
+    [__, Bg('B3', 0.2), __],
+    [__, B('B2'), __],
+    [Ls('D#5'), Bg('F#3'), __],
+    [Ll('E5'), B('E2', 0.42), nArp('E3', 3, 7)],
+    [__, Bg('E3', 0.2), __],
+    [__, B('E2'), __],
+    [OFF, Bg('B3'), __],
+  ],
+};
+export const BOSS_THEME: Song = { title: 'Wrath Machine', bpm: 170, patterns: [bp0, bp1], arrangement: [0, 1, 0, 1], loopPoint: 0 };
+
+// ============================================================
+// GAME OVER JINGLE
+// ============================================================
 const gameOverPattern: Pattern = {
-  speed: 48,
-  rows: [
-    [n('E4', 'sawtooth', SID_ADSR.pad, 0.3), n('E2', 'sawtooth', SID_ADSR.bass, 0.3), nArp('E3', 3, 7)],
-    [null, null, null],
-    [n('D4', 'sawtooth', SID_ADSR.pad, 0.25), n('D2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('D3', 3, 7)],
-    [null, null, null],
-    [n('C4', 'sawtooth', SID_ADSR.pad, 0.2), n('C2', 'sawtooth', SID_ADSR.bass, 0.25), nArp('C3', 3, 7)],
-    [null, null, null],
-    [n('B3', 'sawtooth', SID_ADSR.pad, 0.2), n('B1', 'sawtooth', SID_ADSR.bass, 0.25), nArp('B2', 3, 6)],
-    [null, null, null],
-    [n('A3', 'triangle', SID_ADSR.pad, 0.25), n('A1', 'sawtooth', SID_ADSR.bass, 0.3), nArp('A2', 3, 7)],
-    [null, null, null],
-    [null, null, null],
-    [null, null, null],
-    [n('---'), n('---'), n('---')],
-    [null, null, null],
-    [null, null, null],
-    [null, null, null],
+  speed: 8, rows: [
+    [Ll('E5'), B('A2', 0.3), nArp('A3', 3, 7)],
+    [__, __, __],
+    [Ls('D#5'), __, __],
+    [Ls('D5'), Bg('E3'), __],
+    [Ll('C5', 0.28), B('F2', 0.3), nArp('F3', 4, 7)],
+    [__, __, __],
+    [Ls('B4'), __, __],
+    [Ls('A4'), Bg('C3'), __],
+    [Ll('G#4'), B('E2'), nArp('E3', 4, 7)],
+    [__, __, __],
+    [__, __, __],
+    [__, Bg('B2', 0.2), __],
+    [Ll('A3', 0.25), B('A1'), nArp('A2', 3, 7)],
+    [__, __, __],
+    [__, __, __],
+    [OFF, OFF, OFF],
   ],
 };
-
-export const GAME_OVER_JINGLE: Song = {
-  title: 'Game Over',
-  bpm: 110,
-  patterns: [gameOverPattern],
-  arrangement: [0],
-  loopPoint: 0, // Won't loop - one-shot
-};
+export const GAME_OVER_JINGLE: Song = { title: 'Game Over', bpm: 100, patterns: [gameOverPattern], arrangement: [0], loopPoint: 0 };
