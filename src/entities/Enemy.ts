@@ -2,6 +2,7 @@ import { Entity } from './Entity';
 import { EnemyType, MovementPattern } from '../types/index';
 import { COLORS, GAME_HEIGHT } from '../utils/constants';
 import { randomRange } from '../utils/math';
+import { SpriteFactory } from '../utils/SpriteFactory';
 
 export class Enemy extends Entity {
   public enemyType: EnemyType = 'basic';
@@ -18,8 +19,8 @@ export class Enemy extends Entity {
 
   constructor() {
     super();
-    this.width = 24;
-    this.height = 20;
+    this.width = 36;
+    this.height = 30;
   }
 
   init(
@@ -66,81 +67,15 @@ export class Enemy extends Entity {
   }
 
   private draw(): void {
-    this.graphics.clear();
-
-    let color: number;
-    switch (this.enemyType) {
-      case 'basic':
-        color = COLORS.enemyBasic;
-        this.drawBasicShip(color);
-        break;
-      case 'sine':
-        color = COLORS.enemySine;
-        this.drawSineShip(color);
-        break;
-      case 'follow':
-        color = COLORS.enemyFollow;
-        this.drawFollowShip(color);
-        break;
-      case 'diagonal':
-        color = COLORS.enemyDiagonal;
-        this.drawDiagonalShip(color);
-        break;
-    }
-  }
-
-  private drawBasicShip(color: number): void {
-    this.graphics
-      .poly([
-        { x: -12, y: 0 },
-        { x: 6, y: -8 },
-        { x: 12, y: -6 },
-        { x: 12, y: 6 },
-        { x: 6, y: 8 },
-      ])
-      .fill({ color });
-  }
-
-  private drawSineShip(color: number): void {
-    this.graphics
-      .poly([
-        { x: -10, y: 0 },
-        { x: 0, y: -10 },
-        { x: 10, y: -6 },
-        { x: 10, y: 6 },
-        { x: 0, y: 10 },
-      ])
-      .fill({ color });
-    // Wing details
-    this.graphics
-      .rect(-4, -12, 8, 2)
-      .fill({ color });
-    this.graphics
-      .rect(-4, 10, 8, 2)
-      .fill({ color });
-  }
-
-  private drawFollowShip(color: number): void {
-    this.graphics
-      .circle(0, 0, 10)
-      .fill({ color });
-    this.graphics
-      .circle(0, 0, 5)
-      .fill({ color: 0x220022 });
-    this.graphics
-      .circle(-2, 0, 3)
-      .fill({ color: 0xff00ff });
-  }
-
-  private drawDiagonalShip(color: number): void {
-    this.graphics
-      .poly([
-        { x: -10, y: 0 },
-        { x: 0, y: -10 },
-        { x: 10, y: 0 },
-        { x: 0, y: 10 },
-      ])
-      .fill({ color });
+    const textureMap = {
+      basic: SpriteFactory.enemyBasic(),
+      sine: SpriteFactory.enemySine(),
+      follow: SpriteFactory.enemyFollow(),
+      diagonal: SpriteFactory.enemyDiagonal(),
+    };
+    const texture = textureMap[this.enemyType];
+    const sprite = SpriteFactory.createSprite(texture, this.width, this.height);
+    this.setSprite(sprite);
   }
 
   update(dt: number, playerY: number): void {

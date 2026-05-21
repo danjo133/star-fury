@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import { Bounds } from '../types/index';
 
 export class Entity {
@@ -12,11 +12,22 @@ export class Entity {
   public height = 0;
 
   protected graphics: Graphics;
+  protected sprite: Sprite | null = null;
 
   constructor() {
     this.container = new Container();
     this.graphics = new Graphics();
     this.container.addChild(this.graphics);
+  }
+
+  protected setSprite(newSprite: Sprite): void {
+    if (this.sprite) {
+      this.sprite.removeFromParent();
+    }
+    this.sprite = newSprite;
+    this.container.addChild(this.sprite);
+    // Hide the old graphics
+    this.graphics.visible = false;
   }
 
   get x(): number {

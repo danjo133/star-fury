@@ -3,15 +3,18 @@ import { Enemy } from '../entities/Enemy';
 import { Player } from '../entities/Player';
 import { Boss } from '../entities/Boss';
 import { PowerUp } from '../entities/PowerUp';
+import { Asteroid } from '../entities/Asteroid';
 import { Bounds } from '../types/index';
 import { ObjectPool } from '../utils/ObjectPool';
 
 export interface CollisionEvent {
-  type: 'enemy_hit' | 'player_hit' | 'boss_hit' | 'powerup_collected' | 'enemy_contact';
+  type: 'enemy_hit' | 'player_hit' | 'boss_hit' | 'powerup_collected' | 'enemy_contact' | 'asteroid_hit' | 'asteroid_contact';
   enemy?: Enemy;
+  asteroid?: Asteroid;
   bullet?: Bullet;
   powerUp?: PowerUp;
   damage?: number;
+  killed?: boolean;
   x: number;
   y: number;
 }
@@ -32,7 +35,8 @@ export class CollisionSystem {
     playerBullets: ObjectPool<Bullet>,
     enemyBullets: ObjectPool<Bullet>,
     powerUps: ObjectPool<PowerUp>,
-    boss: Boss | null
+    boss: Boss | null,
+    asteroids?: ObjectPool<Asteroid>
   ): CollisionEvent[] {
     const events: CollisionEvent[] = [];
 
@@ -54,6 +58,7 @@ export class CollisionSystem {
             enemy,
             bullet,
             damage: bullet.damage,
+            killed: dead,
             x: enemy.x,
             y: enemy.y,
           });
@@ -146,6 +151,57 @@ export class CollisionSystem {
       }
     }
     powerUpsToRelease.forEach((p) => powerUps.release(p));
+
+    // Asteroids
+    if (asteroids) {
+      const asteroidsToRelease: Asteroid[] = [];
+
+      // Player bullets vs asteroids
+      for (const bullet of playerBullets.active) {
+        const bulletBounds = bullet.bounds;
+        for (const asteroid of asteroids.active) {
+          if (aabb(bulletBounds, asteroid.bounds)) {
+            const dead = asteroid.takeDamage(bullet.damage);
+            events.push({
+              type: 'asteroid_hit',
+              asteroid,
+              bullet,
+              damage: bullet.damage,
+              killed: dead,
+              x: asteroid.x,
+              y: asteroid.y,
+            });
+            if (!bullet.isLaser) {
+              bulletsToRelease.push(bullet);
+            }
+            if (dead) {
+              asteroidsToRelease.push(asteroid);
+            }
+            break;
+          }
+        }
+      }
+
+      // Asteroid contact vs player
+      if (!player.invincible) {
+        for (const asteroid of asteroids.active) {
+          if (aabb(asteroid.bounds, playerBounds)) {
+            events.push({
+              type: 'asteroid_contact',
+              asteroid,
+              damage: 1,
+              x: player.x,
+              y: player.y,
+            });
+            break;
+          }
+        }
+      }
+
+      // Release destroyed asteroids (bullets already handled above)
+      asteroidsToRelease.forEach((a) => asteroids.release(a));
+      bulletsToRelease.forEach((b) => playerBullets.release(b));
+    }
 
     return events;
   }

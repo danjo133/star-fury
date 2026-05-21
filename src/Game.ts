@@ -86,6 +86,7 @@ export class Game {
       this.startGame();
     });
     this.switchScene(menuScene);
+    this.audio.startMusic('title');
   }
 
   private startGame(): void {
@@ -101,5 +102,6 @@ export class Game {
       this.startGame();
     });
     this.switchScene(gameOverScene);
+    this.audio.startMusic('gameover');
   }
 }

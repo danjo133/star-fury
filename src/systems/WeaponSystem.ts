@@ -5,7 +5,7 @@ import { Enemy } from '../entities/Enemy';
 import { Boss } from '../entities/Boss';
 import { PLAYER_BULLET_SPEED, PLAYER_FIRE_RATE, ENEMY_BULLET_SPEED } from '../utils/constants';
 import { ObjectPool } from '../utils/ObjectPool';
-import { angle } from '../utils/math';
+import { angle as calcAngle } from '../utils/math';
 
 export class WeaponSystem {
   private fireCooldown = 0;
@@ -42,42 +42,45 @@ export class WeaponSystem {
       case 'normal':
         this.firePlayerBullet(player.x + 16, player.y, PLAYER_BULLET_SPEED, 0, 1);
         break;
-      case 'spread':
-        this.fireSpread(player);
+      case 'triple':
+        this.fireTriple(player);
         break;
-      case 'laser':
-        this.fireLaser(player);
+      case 'parallel':
+        this.fireParallel(player);
         break;
-      case 'missile':
-        this.fireMissile(player);
+      case 'circle':
+        this.fireCircle(player);
         break;
     }
   }
 
-  private fireSpread(player: Player): void {
-    const angles = player.weaponLevel >= 3
-      ? [-0.3, -0.15, 0, 0.15, 0.3]
-      : player.weaponLevel >= 2
-        ? [-0.2, 0, 0.2]
-        : [-0.15, 0, 0.15];
-
-    for (const a of angles) {
-      const vx = Math.cos(a) * PLAYER_BULLET_SPEED;
-      const vy = Math.sin(a) * PLAYER_BULLET_SPEED;
-      this.firePlayerBullet(player.x + 16, player.y, vx, vy, 1);
-    }
+  private fireTriple(player: Player): void {
+    const angle30 = Math.PI / 6; // 30 degrees
+    // Center shot
+    this.firePlayerBullet(player.x + 16, player.y, PLAYER_BULLET_SPEED, 0, 1);
+    // +30 degrees
+    const vxUp = Math.cos(-angle30) * PLAYER_BULLET_SPEED;
+    const vyUp = Math.sin(-angle30) * PLAYER_BULLET_SPEED;
+    this.firePlayerBullet(player.x + 16, player.y, vxUp, vyUp, 1);
+    // -30 degrees
+    const vxDown = Math.cos(angle30) * PLAYER_BULLET_SPEED;
+    const vyDown = Math.sin(angle30) * PLAYER_BULLET_SPEED;
+    this.firePlayerBullet(player.x + 16, player.y, vxDown, vyDown, 1);
   }
 
-  private fireLaser(player: Player): void {
-    const damage = player.weaponLevel;
-    this.firePlayerBullet(player.x + 16, player.y, PLAYER_BULLET_SPEED * 1.5, 0, damage, true);
+  private fireParallel(player: Player): void {
+    // Two shots side by side (offset vertically)
+    this.firePlayerBullet(player.x + 16, player.y - 8, PLAYER_BULLET_SPEED, 0, 1);
+    this.firePlayerBullet(player.x + 16, player.y + 8, PLAYER_BULLET_SPEED, 0, 1);
   }
 
-  private fireMissile(player: Player): void {
-    const count = player.weaponLevel;
-    for (let i = 0; i < count; i++) {
-      const offsetY = (i - (count - 1) / 2) * 12;
-      this.firePlayerBullet(player.x + 16, player.y + offsetY, PLAYER_BULLET_SPEED * 0.8, 0, 2);
+  private fireCircle(player: Player): void {
+    const bulletCount = 8;
+    for (let i = 0; i < bulletCount; i++) {
+      const a = (i / bulletCount) * Math.PI * 2;
+      const vx = Math.cos(a) * PLAYER_BULLET_SPEED * 0.7;
+      const vy = Math.sin(a) * PLAYER_BULLET_SPEED * 0.7;
+      this.firePlayerBullet(player.x, player.y, vx, vy, 1);
     }
   }
 
@@ -88,7 +91,7 @@ export class WeaponSystem {
   }
 
   private enemyShoot(enemy: Enemy, player: Player): void {
-    const a = angle(enemy.x, enemy.y, player.x, player.y);
+    const a = calcAngle(enemy.x, enemy.y, player.x, player.y);
     const vx = Math.cos(a) * ENEMY_BULLET_SPEED;
     const vy = Math.sin(a) * ENEMY_BULLET_SPEED;
     const bullet = this.enemyBulletPool.get();

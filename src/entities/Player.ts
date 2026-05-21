@@ -3,6 +3,7 @@ import { Entity } from './Entity';
 import { COLORS, GAME_HEIGHT, GAME_WIDTH, PLAYER_MAX_HP, PLAYER_SPEED } from '../utils/constants';
 import { clamp } from '../utils/math';
 import { WeaponType } from '../types/index';
+import { SpriteFactory } from '../utils/SpriteFactory';
 
 export class Player extends Entity {
   public weaponType: WeaponType = 'normal';
@@ -16,8 +17,8 @@ export class Player extends Entity {
 
   constructor() {
     super();
-    this.width = 32;
-    this.height = 20;
+    this.width = 48;
+    this.height = 30;
     this.maxHp = PLAYER_MAX_HP;
     this.hp = PLAYER_MAX_HP;
     this.drawShip();
@@ -26,42 +27,8 @@ export class Player extends Entity {
   }
 
   private drawShip(): void {
-    this.graphics.clear();
-
-    // Main body - sleek fighter shape
-    this.graphics
-      .poly([
-        { x: 16, y: 0 },     // nose
-        { x: -8, y: -6 },    // top-back
-        { x: -12, y: -4 },   // indent top
-        { x: -12, y: 4 },    // indent bottom
-        { x: -8, y: 6 },     // bottom-back
-      ])
-      .fill({ color: COLORS.player });
-
-    // Wings
-    this.graphics
-      .poly([
-        { x: -2, y: -6 },
-        { x: -8, y: -12 },
-        { x: -14, y: -10 },
-        { x: -10, y: -6 },
-      ])
-      .fill({ color: COLORS.player });
-
-    this.graphics
-      .poly([
-        { x: -2, y: 6 },
-        { x: -8, y: 12 },
-        { x: -14, y: 10 },
-        { x: -10, y: 6 },
-      ])
-      .fill({ color: COLORS.player });
-
-    // Engine glow
-    this.graphics
-      .circle(-14, 0, 3)
-      .fill({ color: COLORS.playerEngine });
+    const sprite = SpriteFactory.createSprite(SpriteFactory.player(), this.width, this.height);
+    this.setSprite(sprite);
   }
 
   update(dt: number, inputX: number, inputY: number): void {

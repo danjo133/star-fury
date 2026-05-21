@@ -5,6 +5,7 @@ import { Enemy } from '../entities/Enemy';
 import { Bullet } from '../entities/Bullet';
 import { PowerUp } from '../entities/PowerUp';
 import { Boss } from '../entities/Boss';
+import { Asteroid } from '../entities/Asteroid';
 import { ObjectPool } from '../utils/ObjectPool';
 import { MovementSystem } from '../systems/MovementSystem';
 import { CollisionSystem, CollisionEvent } from '../systems/CollisionSystem';
@@ -17,12 +18,12 @@ import { InputManager } from '../managers/InputManager';
 import { AudioManager } from '../managers/AudioManager';
 import { ScoreManager } from '../managers/ScoreManager';
 import { LevelManager } from '../levels/LevelManager';
+import { ParallaxBackground } from '../utils/ParallaxBackground';
 import {
   GAME_WIDTH, GAME_HEIGHT, POOL_BULLETS, POOL_ENEMY_BULLETS,
-  POOL_ENEMIES, POOL_PARTICLES, COLORS, POWERUP_DROP_CHANCE,
+  POOL_ENEMIES, POOL_PARTICLES, COLORS,
   SCORE_BOSS,
 } from '../utils/constants';
-import { randomRange } from '../utils/math';
 
 type GameState = 'playing' | 'boss_intro' | 'boss_fight' | 'level_clear' | 'game_over' | 'victory';
 
@@ -57,8 +58,13 @@ export class GameScene implements IScene {
   private stateTimer = 0;
   private hitStopTimer = 0;
 
-  // Background stars
-  private stars: { g: Graphics; speed: number }[] = [];
+  // Parallax background
+  private parallaxBg: ParallaxBackground;
+
+  // Asteroids
+  private asteroidPool: ObjectPool<Asteroid>;
+  private asteroidSpawnTimer = 0;
+  private asteroidSpawnInterval = 3; // seconds between asteroid spawns
 
   // HUD elements
   private scoreText!: Text;
@@ -71,6 +77,9 @@ export class GameScene implements IScene {
 
   // Score popups
   private scorePopups: { text: Text; timer: number }[] = [];
+
+  // Shield bubble visual
+  private shieldBubble: Graphics;
 
   private onGameOver: (score: number) => void;
 
@@ -89,6 +98,10 @@ export class GameScene implements IScene {
     this.scoreManager = scoreManager;
     this.onGameOver = onGameOver;
     this.levelManager = new LevelManager();
+
+    // Create parallax background
+    this.parallaxBg = new ParallaxBackground();
+    this.bgContainer.addChild(this.parallaxBg.container);
 
     // Create pools
     this.enemyPool = new ObjectPool(
@@ -115,11 +128,22 @@ export class GameScene implements IScene {
       20
     );
 
+    this.asteroidPool = new ObjectPool(
+      () => new Asteroid(),
+      (a) => { a.reset(); a.container.removeFromParent(); },
+      15
+    );
+
     // Create player
     this.player = new Player();
     this.player.x = 60;
     this.player.y = GAME_HEIGHT / 2;
     this.gameContainer.addChild(this.player.container);
+
+    // Create shield bubble (attached to player)
+    this.shieldBubble = new Graphics();
+    this.shieldBubble.visible = false;
+    this.player.container.addChild(this.shieldBubble);
 
     // Create systems
     this.movementSystem = new MovementSystem();
@@ -133,7 +157,6 @@ export class GameScene implements IScene {
     this.flash = new Flash(this.gameContainer);
 
     // Setup
-    this.createBackground();
     this.createHUD();
   }
 
@@ -153,7 +176,8 @@ export class GameScene implements IScene {
   }
 
   private startLevel(): void {
-    this.spawnSystem.loadWaves(this.levelManager.currentConfig.waves);
+    const config = this.levelManager.currentConfig;
+    this.spawnSystem.loadWaves(config.waves, config.bossTime);
     this.state = 'playing';
     this.stateTimer = 0;
 
@@ -166,6 +190,7 @@ export class GameScene implements IScene {
     this.playerBulletPool.releaseAll();
     this.enemyBulletPool.releaseAll();
     this.powerUpPool.releaseAll();
+    this.asteroidPool.releaseAll();
     this.particleSystem.clear();
     if (this.boss) {
       this.boss.container.removeFromParent();
@@ -179,13 +204,13 @@ export class GameScene implements IScene {
     // Hit-stop (brief pause on significant hits)
     if (this.hitStopTimer > 0) {
       this.hitStopTimer -= dt;
-      this.updateBackground(dt); // Keep bg moving
+      this.parallaxBg.update(dt); // Keep bg moving
       this.particleSystem.update(dt);
       return;
     }
 
     // Update background
-    this.updateBackground(dt);
+    this.parallaxBg.update(dt);
 
     // Update effects
     this.screenShake.update(dt);
@@ -224,9 +249,10 @@ export class GameScene implements IScene {
   private updatePlaying(dt: number): void {
     this.updatePlayer(dt);
     this.spawnSystem.update(dt);
-    this.movementSystem.update(dt, this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, null);
+    this.movementSystem.update(dt, this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, null, (e) => this.spawnSystem.notifyEnemyLeft(e));
     this.weaponSystem.update(dt, this.player, this.input.shoot, this.enemyPool, null);
     this.updatePowerUps(dt);
+    this.updateAsteroids(dt);
     this.handleCollisions();
     this.handleEnemyShooting();
 
@@ -238,7 +264,7 @@ export class GameScene implements IScene {
 
   private updateBossIntro(dt: number): void {
     this.updatePlayer(dt);
-    this.movementSystem.update(dt, this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, this.boss);
+    this.movementSystem.update(dt, this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, this.boss, (e) => this.spawnSystem.notifyEnemyLeft(e));
     this.stateTimer -= dt;
 
     if (this.stateTimer <= 0) {
@@ -249,9 +275,10 @@ export class GameScene implements IScene {
 
   private updateBossFight(dt: number): void {
     this.updatePlayer(dt);
-    this.movementSystem.update(dt, this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, this.boss);
+    this.movementSystem.update(dt, this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, this.boss, (e) => this.spawnSystem.notifyEnemyLeft(e));
     this.weaponSystem.update(dt, this.player, this.input.shoot, this.enemyPool, this.boss);
     this.updatePowerUps(dt);
+    this.updateAsteroids(dt);
     this.handleCollisions();
 
     if (this.boss?.defeated) {
@@ -280,6 +307,7 @@ export class GameScene implements IScene {
         this.player.fullReset();
         this.gameContainer.addChild(this.player.container);
         this.startLevel();
+        this.audio.startMusic('game');
       } else {
         this.state = 'victory';
         this.stateTimer = 5;
@@ -326,7 +354,7 @@ export class GameScene implements IScene {
 
   private handleCollisions(): void {
     const events = this.collisionSystem.checkCollisions(
-      this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, this.powerUpPool, this.boss
+      this.player, this.enemyPool, this.playerBulletPool, this.enemyBulletPool, this.powerUpPool, this.boss, this.asteroidPool
     );
 
     for (const event of events) {
@@ -338,14 +366,20 @@ export class GameScene implements IScene {
     switch (event.type) {
       case 'enemy_hit':
         this.audio.play('hit');
-        if (event.enemy && event.enemy.hp <= 0) {
+        if (event.enemy && event.killed) {
           // Enemy killed
           this.audio.play('explosion');
           this.particleSystem.emitExplosion(event.x, event.y, COLORS.explosion, 'medium');
           const points = this.scoreManager.addKill(event.enemy.scoreValue);
           this.spawnScorePopup(event.x, event.y, points);
-          this.maybeDropPowerUp(event.x, event.y);
           this.hitStopTimer = 0.02;
+
+          // Check if entire wave group is eliminated
+          const waveCleared = this.spawnSystem.notifyEnemyKilled(event.enemy);
+          if (waveCleared) {
+            // Guaranteed power-up drop when full group killed
+            this.dropPowerUp(event.x, event.y);
+          }
         } else {
           this.particleSystem.emitExplosion(event.x, event.y, 0xffffff, 'small');
         }
@@ -360,6 +394,7 @@ export class GameScene implements IScene {
       case 'player_hit':
       case 'enemy_contact': {
         const dead = this.player.hit();
+        this.updateShieldVisual();
         if (!dead) {
           this.audio.play('hit');
           this.screenShake.shake(8, 0.3);
@@ -383,6 +418,39 @@ export class GameScene implements IScene {
         this.applyPowerUp(event.powerUp!.powerUpType);
         this.particleSystem.emitExplosion(event.x, event.y, 0xffffff, 'small');
         break;
+
+      case 'asteroid_hit':
+        this.audio.play('hit');
+        if (event.killed) {
+          this.audio.play('explosion');
+          this.particleSystem.emitExplosion(event.x, event.y, 0x886644, 'medium');
+          const pts = this.scoreManager.addKill(event.asteroid!.scoreValue);
+          this.spawnScorePopup(event.x, event.y, pts);
+        } else {
+          this.particleSystem.emitExplosion(event.x, event.y, 0x665544, 'small');
+        }
+        break;
+
+      case 'asteroid_contact': {
+        const dead = this.player.hit();
+        this.updateShieldVisual();
+        if (!dead) {
+          this.audio.play('hit');
+          this.screenShake.shake(8, 0.3);
+          this.particleSystem.emitExplosion(event.x, event.y, COLORS.player, 'small');
+        }
+        if (dead) {
+          this.audio.play('explosion');
+          this.particleSystem.emitExplosion(this.player.x, this.player.y, COLORS.player, 'large');
+          this.screenShake.shake(12, 0.5);
+          this.player.container.visible = false;
+          this.state = 'game_over';
+          this.stateTimer = 2;
+          this.showMessage('GAME OVER', 2);
+          this.audio.stopMusic();
+        }
+        break;
+      }
     }
   }
 
@@ -390,10 +458,8 @@ export class GameScene implements IScene {
     // Enemy shooting is handled by WeaponSystem
   }
 
-  private maybeDropPowerUp(x: number, y: number): void {
-    if (Math.random() > POWERUP_DROP_CHANCE) return;
-
-    const types: PowerUpType[] = ['spread', 'laser', 'missile', 'speed', 'shield'];
+  private dropPowerUp(x: number, y: number): void {
+    const types: PowerUpType[] = ['triple', 'parallel', 'circle', 'shield'];
     const type = types[Math.floor(Math.random() * types.length)];
     const pu = this.powerUpPool.get();
     pu.init(x, y, type);
@@ -402,21 +468,34 @@ export class GameScene implements IScene {
 
   private applyPowerUp(type: PowerUpType): void {
     switch (type) {
-      case 'spread':
-        this.player.upgradeWeapon('spread');
+      case 'triple':
+        this.player.upgradeWeapon('triple');
         break;
-      case 'laser':
-        this.player.upgradeWeapon('laser');
+      case 'parallel':
+        this.player.upgradeWeapon('parallel');
         break;
-      case 'missile':
-        this.player.upgradeWeapon('missile');
-        break;
-      case 'speed':
-        this.player.speedMultiplier = Math.min(this.player.speedMultiplier + 0.3, 2.0);
+      case 'circle':
+        this.player.upgradeWeapon('circle');
         break;
       case 'shield':
         this.player.shieldHits = 3;
+        this.updateShieldVisual();
         break;
+    }
+  }
+
+  private updateShieldVisual(): void {
+    this.shieldBubble.clear();
+    if (this.player.shieldHits > 0) {
+      const alpha = 0.2 + this.player.shieldHits * 0.1;
+      this.shieldBubble
+        .circle(0, 0, 28)
+        .stroke({ color: COLORS.shield, width: 2, alpha: 0.8 })
+        .circle(0, 0, 28)
+        .fill({ color: COLORS.shield, alpha });
+      this.shieldBubble.visible = true;
+    } else {
+      this.shieldBubble.visible = false;
     }
   }
 
@@ -435,6 +514,10 @@ export class GameScene implements IScene {
     this.state = 'boss_intro';
     this.stateTimer = 2;
     this.showMessage('WARNING!\nBOSS APPROACHING', 2);
+    this.audio.startMusic('boss');
+
+    // Clear remaining enemies
+    this.enemyPool.releaseAll();
 
     // Create boss
     this.boss = new Boss();
@@ -442,37 +525,34 @@ export class GameScene implements IScene {
     this.gameContainer.addChild(this.boss.container);
   }
 
-  // Background
-  private createBackground(): void {
-    // Create star layers
-    for (let layer = 0; layer < 3; layer++) {
-      const speed = 30 + layer * 40;
-      const count = 20 + layer * 15;
-      const size = 1 + layer * 0.5;
+  // Asteroids
+  private updateAsteroids(dt: number): void {
+    // Spawn timer
+    this.asteroidSpawnTimer -= dt;
+    if (this.asteroidSpawnTimer <= 0) {
+      this.spawnAsteroid();
+      this.asteroidSpawnTimer = this.asteroidSpawnInterval + Math.random() * 2;
+    }
 
-      for (let i = 0; i < count; i++) {
-        const star = new Graphics();
-        const alpha = 0.3 + layer * 0.2;
-        star
-          .rect(0, 0, size, size)
-          .fill({ color: COLORS.star });
-        star.alpha = alpha;
-        star.x = Math.random() * GAME_WIDTH;
-        star.y = Math.random() * GAME_HEIGHT;
-        this.bgContainer.addChild(star);
-        this.stars.push({ g: star, speed });
+    // Update existing asteroids
+    const toRelease: Asteroid[] = [];
+    for (const asteroid of this.asteroidPool.active) {
+      asteroid.update(dt);
+      if (asteroid.x < -60) {
+        toRelease.push(asteroid);
       }
     }
+    toRelease.forEach((a) => this.asteroidPool.release(a));
   }
 
-  private updateBackground(dt: number): void {
-    for (const star of this.stars) {
-      star.g.x -= star.speed * dt;
-      if (star.g.x < -5) {
-        star.g.x = GAME_WIDTH + 5;
-        star.g.y = Math.random() * GAME_HEIGHT;
-      }
-    }
+  private spawnAsteroid(): void {
+    const asteroid = this.asteroidPool.get();
+    const sizes: ('small' | 'medium' | 'large')[] = ['small', 'small', 'medium', 'medium', 'large'];
+    const size = sizes[Math.floor(Math.random() * sizes.length)];
+    const y = 40 + Math.random() * (GAME_HEIGHT - 80);
+    const speed = 80 + Math.random() * 80;
+    asteroid.init(GAME_WIDTH + 40, y, size, speed);
+    this.gameContainer.addChild(asteroid.container);
   }
 
   // HUD

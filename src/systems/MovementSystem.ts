@@ -12,7 +12,8 @@ export class MovementSystem {
     enemies: ObjectPool<Enemy>,
     playerBullets: ObjectPool<Bullet>,
     enemyBullets: ObjectPool<Bullet>,
-    boss: Boss | null
+    boss: Boss | null,
+    onEnemyLeft?: (enemy: Enemy) => void
   ): void {
     // Update player bullets
     const bulletsToRelease: Bullet[] = [];
@@ -46,7 +47,10 @@ export class MovementSystem {
         enemiesToRelease.push(enemy);
       }
     }
-    enemiesToRelease.forEach((e) => enemies.release(e));
+    enemiesToRelease.forEach((e) => {
+      if (onEnemyLeft) onEnemyLeft(e);
+      enemies.release(e);
+    });
 
     // Update boss
     if (boss?.active) {

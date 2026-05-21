@@ -1,12 +1,22 @@
+import { SIDSynth } from '../audio/SIDSynth';
+import { SIDSequencer } from '../audio/SIDSequencer';
+import { GAME_THEME, TITLE_THEME, BOSS_THEME, GAME_OVER_JINGLE } from '../audio/SIDTracks';
+import type { Song } from '../audio/SIDSequencer';
+
 type SoundType = 'shoot' | 'explosion' | 'powerup' | 'hit' | 'boss_hit' | 'menu_select' | 'level_clear';
+type MusicTrack = 'game' | 'title' | 'boss' | 'gameover';
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
-  private musicOscillators: OscillatorNode[] = [];
   private musicPlaying = false;
+
+  // SID music system
+  private sidSynth: SIDSynth | null = null;
+  private sidSequencer: SIDSequencer | null = null;
+  private currentTrack: MusicTrack | null = null;
 
   constructor() {}
 
@@ -173,68 +183,65 @@ export class AudioManager {
     });
   }
 
-  startMusic(): void {
-    if (this.musicPlaying) return;
+  private ensureSIDSynth(): void {
+    if (this.sidSynth) return;
     const ctx = this.ensureContext();
+    this.sidSynth = new SIDSynth(ctx, this.musicGain!);
+    this.sidSequencer = new SIDSequencer(this.sidSynth);
+  }
+
+  private getTrackSong(track: MusicTrack): Song {
+    switch (track) {
+      case 'game': return GAME_THEME;
+      case 'title': return TITLE_THEME;
+      case 'boss': return BOSS_THEME;
+      case 'gameover': return GAME_OVER_JINGLE;
+    }
+  }
+
+  startMusic(track: MusicTrack = 'game'): void {
+    if (this.musicPlaying && this.currentTrack === track) return;
+
+    this.stopMusic();
+    this.ensureContext();
+    this.ensureSIDSynth();
     this.musicPlaying = true;
+    this.currentTrack = track;
 
-    // Simple bass line loop
-    const bassNotes = [65, 65, 82, 82, 55, 55, 73, 73]; // C2, C2, E2, E2, A1, A1, D2, D2
-    const beatDuration = 0.25;
-    const loopDuration = bassNotes.length * beatDuration;
-
-    const createLoop = () => {
-      if (!this.musicPlaying) return;
-      const now = ctx.currentTime;
-
-      bassNotes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.15, now + i * beatDuration);
-        gain.gain.setValueAtTime(0.0, now + i * beatDuration + beatDuration * 0.8);
-        osc.connect(gain);
-        gain.connect(this.musicGain!);
-        osc.start(now + i * beatDuration);
-        osc.stop(now + (i + 1) * beatDuration);
-        this.musicOscillators.push(osc);
-      });
-
-      // Simple melody on top
-      const melodyNotes = [262, 0, 330, 0, 392, 0, 330, 262];
-      melodyNotes.forEach((freq, i) => {
-        if (freq === 0) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.08, now + i * beatDuration);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + i * beatDuration + beatDuration * 0.7);
-        osc.connect(gain);
-        gain.connect(this.musicGain!);
-        osc.start(now + i * beatDuration);
-        osc.stop(now + (i + 1) * beatDuration);
-        this.musicOscillators.push(osc);
-      });
-
-      setTimeout(createLoop, loopDuration * 1000);
-    };
-
-    createLoop();
+    const song = this.getTrackSong(track);
+    this.sidSequencer!.loadSong(song);
+    this.sidSequencer!.play();
   }
 
   stopMusic(): void {
     this.musicPlaying = false;
-    this.musicOscillators.forEach((osc) => {
-      try { osc.stop(); } catch (_) { /* already stopped */ }
-    });
-    this.musicOscillators = [];
+    this.currentTrack = null;
+    if (this.sidSequencer) {
+      this.sidSequencer.stop();
+    }
   }
 
   setMasterVolume(volume: number): void {
     if (this.masterGain) {
       this.masterGain.gain.value = volume;
+    }
+  }
+
+  setMusicVolume(volume: number): void {
+    if (this.musicGain) {
+      this.musicGain.gain.value = volume;
+    }
+  }
+
+  destroy(): void {
+    this.stopMusic();
+    if (this.sidSynth) {
+      this.sidSynth.destroy();
+      this.sidSynth = null;
+    }
+    if (this.sidSequencer) {
+      this.sidSequencer.destroy();
+      this.sidSequencer = null;
     }
   }
 }

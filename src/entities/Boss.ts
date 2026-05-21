@@ -1,6 +1,7 @@
 import { Entity } from './Entity';
 import { COLORS, GAME_HEIGHT } from '../utils/constants';
 import { randomRange } from '../utils/math';
+import { SpriteFactory } from '../utils/SpriteFactory';
 
 export type BossPhase = 1 | 2 | 3;
 
@@ -16,14 +17,15 @@ export class Boss extends Entity {
   private moveDir = 1;
   private entering = true;
   private targetX = 0;
+  private readyToShoot = false;
 
   // Level 2 boss segments
   public segments: { x: number; y: number; hp: number }[] = [];
 
   constructor() {
     super();
-    this.width = 64;
-    this.height = 48;
+    this.width = 96;
+    this.height = 72;
   }
 
   init(type: 'level1' | 'level2'): void {
@@ -34,26 +36,27 @@ export class Boss extends Entity {
     this.shootTimer = 0;
     this.phaseTimer = 0;
     this.patternTimer = 0;
+    this.readyToShoot = false;
     this.segments = [];
 
     if (type === 'level1') {
       this.maxHp = 50;
       this.hp = 50;
-      this.width = 64;
-      this.height = 48;
+      this.width = 96;
+      this.height = 72;
       this.x = 900;
       this.y = GAME_HEIGHT / 2;
-      this.targetX = 680;
+      this.targetX = 650;
       this.baseY = GAME_HEIGHT / 2;
       this.scoreValue = 1000;
     } else {
       this.maxHp = 80;
       this.hp = 80;
-      this.width = 40;
-      this.height = 40;
+      this.width = 60;
+      this.height = 60;
       this.x = 900;
       this.y = GAME_HEIGHT / 2;
-      this.targetX = 650;
+      this.targetX = 620;
       this.baseY = GAME_HEIGHT / 2;
       this.scoreValue = 2000;
       // Create segments
@@ -67,67 +70,13 @@ export class Boss extends Entity {
   }
 
   private draw(): void {
-    this.graphics.clear();
-
     if (this.bossType === 'level1') {
-      this.drawLevel1Boss();
+      const sprite = SpriteFactory.createSprite(SpriteFactory.bossLevel1(), this.width, this.height);
+      this.setSprite(sprite);
     } else {
-      this.drawLevel2Boss();
+      const sprite = SpriteFactory.createSprite(SpriteFactory.bossLevel2(), this.width, this.height);
+      this.setSprite(sprite);
     }
-  }
-
-  private drawLevel1Boss(): void {
-    // Large warship body
-    this.graphics
-      .poly([
-        { x: -32, y: 0 },
-        { x: -20, y: -20 },
-        { x: 20, y: -24 },
-        { x: 32, y: -16 },
-        { x: 32, y: 16 },
-        { x: 20, y: 24 },
-        { x: -20, y: 20 },
-      ])
-      .fill({ color: COLORS.boss });
-
-    // Core weak point (glows based on phase)
-    const coreColor = this.phase === 3 ? 0xff0000 : this.phase === 2 ? 0xff8800 : COLORS.bossCore;
-    this.graphics
-      .circle(0, 0, 8)
-      .fill({ color: coreColor });
-    this.graphics
-      .circle(0, 0, 4)
-      .fill({ color: 0xffffff });
-
-    // Cannons
-    this.graphics
-      .rect(-28, -24, 8, 6)
-      .fill({ color: 0x880088 });
-    this.graphics
-      .rect(-28, 18, 8, 6)
-      .fill({ color: 0x880088 });
-
-    // Front armor
-    this.graphics
-      .rect(28, -12, 6, 24)
-      .fill({ color: 0x660066 });
-  }
-
-  private drawLevel2Boss(): void {
-    // Snake/worm head
-    this.graphics
-      .circle(0, 0, 20)
-      .fill({ color: COLORS.boss });
-    this.graphics
-      .circle(5, -8, 5)
-      .fill({ color: 0xff0000 });
-    this.graphics
-      .circle(5, 8, 5)
-      .fill({ color: 0xff0000 });
-    // Mouth
-    this.graphics
-      .rect(-20, -4, 8, 8)
-      .fill({ color: 0x440044 });
   }
 
   update(dt: number, playerY: number): void {
@@ -166,6 +115,7 @@ export class Boss extends Entity {
     const shootRate = this.phase === 3 ? 400 : this.phase === 2 ? 600 : 1000;
     this.shootTimer -= dt * 1000;
     if (this.shootTimer <= 0) {
+      this.readyToShoot = true;
       this.shootTimer = shootRate;
     }
 
@@ -216,7 +166,11 @@ export class Boss extends Entity {
   }
 
   shouldShoot(): boolean {
-    return this.shootTimer <= 0 && !this.entering;
+    if (this.readyToShoot && !this.entering) {
+      this.readyToShoot = false;
+      return true;
+    }
+    return false;
   }
 
   getShootPatterns(): { vx: number; vy: number }[] {
@@ -225,30 +179,35 @@ export class Boss extends Entity {
     if (this.bossType === 'level1') {
       switch (this.phase) {
         case 1:
-          // Straight shots
+          // 3-way spread
           patterns.push({ vx: -300, vy: 0 });
+          patterns.push({ vx: -280, vy: -60 });
+          patterns.push({ vx: -280, vy: 60 });
           break;
         case 2:
-          // Spread
+          // 5-way spread
           patterns.push({ vx: -300, vy: 0 });
           patterns.push({ vx: -280, vy: -80 });
           patterns.push({ vx: -280, vy: 80 });
+          patterns.push({ vx: -250, vy: -150 });
+          patterns.push({ vx: -250, vy: 150 });
           break;
         case 3:
-          // Dense spread + aimed
-          for (let i = -2; i <= 2; i++) {
-            patterns.push({ vx: -300, vy: i * 60 });
+          // Dense fan + fast center
+          patterns.push({ vx: -400, vy: 0 });
+          for (let i = -3; i <= 3; i++) {
+            patterns.push({ vx: -280, vy: i * 50 });
           }
           break;
       }
     } else {
       // Level 2 boss - aimed shots
-      const count = this.phase + 1;
+      const count = this.phase * 2 + 1;
       for (let i = 0; i < count; i++) {
-        const angle = randomRange(-0.5, 0.5);
+        const angle = randomRange(-0.6, 0.6);
         patterns.push({
-          vx: -300 * Math.cos(angle),
-          vy: -300 * Math.sin(angle),
+          vx: -320 * Math.cos(angle),
+          vy: -320 * Math.sin(angle),
         });
       }
     }

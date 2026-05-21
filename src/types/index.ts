@@ -4,9 +4,9 @@ export type EnemyType = 'basic' | 'sine' | 'follow' | 'diagonal';
 
 export type MovementPattern = 'linear' | 'sine' | 'follow' | 'diagonal';
 
-export type PowerUpType = 'spread' | 'laser' | 'missile' | 'speed' | 'shield';
+export type PowerUpType = 'triple' | 'parallel' | 'circle' | 'shield';
 
-export type WeaponType = 'normal' | 'spread' | 'laser' | 'missile';
+export type WeaponType = 'normal' | 'triple' | 'parallel' | 'circle';
 
 export type BulletOwner = 'player' | 'enemy';
 
