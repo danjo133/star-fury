@@ -98,38 +98,38 @@ export class SIDVoice {
     this.filterNode.type = type;
   }
 
-  noteOn(freq: number, waveform: OscillatorType | 'pulse', adsr: ADSRConfig, volume = 0.3, pulseWidth = 0.5): void {
-    this.noteOff();
+  noteOn(freq: number, waveform: OscillatorType | 'pulse', adsr: ADSRConfig, volume = 0.3, pulseWidth = 0.5, time?: number): void {
+    this.noteOff(time);
     this._active = true;
     this.currentAdsr = adsr;
 
-    const now = this.ctx.currentTime;
+    const t = time ?? this.ctx.currentTime;
 
     if (waveform === 'pulse') {
-      this.startPulseWave(freq, pulseWidth);
+      this.startPulseWave(freq, pulseWidth, t);
     } else {
       this.oscillator = this.ctx.createOscillator();
       this.oscillator.type = waveform;
       this.oscillator.frequency.value = freq;
       this.oscillator.connect(this.filterNode);
-      this.oscillator.start(now);
+      this.oscillator.start(t);
     }
 
     // ADSR envelope
-    this.gainNode.gain.cancelScheduledValues(now);
-    this.gainNode.gain.setValueAtTime(0, now);
-    this.gainNode.gain.linearRampToValueAtTime(volume, now + adsr.attack);
-    this.gainNode.gain.linearRampToValueAtTime(volume * adsr.sustain, now + adsr.attack + adsr.decay);
+    this.gainNode.gain.cancelScheduledValues(t);
+    this.gainNode.gain.setValueAtTime(0, t);
+    this.gainNode.gain.linearRampToValueAtTime(volume, t + adsr.attack);
+    this.gainNode.gain.linearRampToValueAtTime(volume * adsr.sustain, t + adsr.attack + adsr.decay);
   }
 
-  noteOff(): void {
+  noteOff(time?: number): void {
     if (!this._active) return;
     this._active = false;
 
-    const now = this.ctx.currentTime;
-    this.gainNode.gain.cancelScheduledValues(now);
-    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
-    this.gainNode.gain.linearRampToValueAtTime(0, now + this.currentAdsr.release);
+    const t = time ?? this.ctx.currentTime;
+    this.gainNode.gain.cancelScheduledValues(t);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, t);
+    this.gainNode.gain.linearRampToValueAtTime(0, t + this.currentAdsr.release);
 
     // Stop oscillators after release
     const stopTime = now + this.currentAdsr.release + 0.01;

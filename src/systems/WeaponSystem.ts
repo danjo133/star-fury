@@ -38,19 +38,21 @@ export class WeaponSystem {
   }
 
   private playerShoot(player: Player): void {
-    switch (player.weaponType) {
-      case 'normal':
-        this.firePlayerBullet(player.x + 16, player.y, PLAYER_BULLET_SPEED, 0, 1);
-        break;
-      case 'triple':
-        this.fireTriple(player);
-        break;
-      case 'parallel':
-        this.fireParallel(player);
-        break;
-      case 'circle':
-        this.fireCircle(player);
-        break;
+    for (const weapon of player.activeWeapons) {
+      switch (weapon) {
+        case 'normal':
+          this.firePlayerBullet(player.x + 16, player.y, PLAYER_BULLET_SPEED, 0, 1);
+          break;
+        case 'triple':
+          this.fireTriple(player);
+          break;
+        case 'parallel':
+          this.fireParallel(player);
+          break;
+        case 'circle':
+          this.fireCircle(player);
+          break;
+      }
     }
   }
 

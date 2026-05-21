@@ -8,6 +8,7 @@ import { SpriteFactory } from '../utils/SpriteFactory';
 export class Player extends Entity {
   public weaponType: WeaponType = 'normal';
   public weaponLevel = 1;
+  public activeWeapons: Set<WeaponType> = new Set(['normal']);
   public lives = 3;
   public invincible = false;
   public invincibleTimer = 0;
@@ -81,6 +82,7 @@ export class Player extends Entity {
     this.hp = PLAYER_MAX_HP;
     this.weaponType = 'normal';
     this.weaponLevel = 1;
+    this.activeWeapons = new Set(['normal']);
     this.invincible = false;
     this.invincibleTimer = 0;
     this.shieldHits = 0;
@@ -91,7 +93,23 @@ export class Player extends Entity {
     this.container.visible = true;
   }
 
+  /** Reset position/state for next level but keep weapons */
+  levelReset(): void {
+    this.hp = PLAYER_MAX_HP;
+    this.invincible = false;
+    this.invincibleTimer = 0;
+    this.x = 60;
+    this.y = GAME_HEIGHT / 2;
+    this.active = true;
+    this.container.visible = true;
+  }
+
   upgradeWeapon(type: WeaponType): void {
+    this.activeWeapons.add(type);
+    // Once you have a real weapon, remove the basic normal shot (it's redundant)
+    if (type !== 'normal' && this.activeWeapons.size > 1) {
+      this.activeWeapons.delete('normal');
+    }
     if (this.weaponType === type) {
       this.weaponLevel = Math.min(this.weaponLevel + 1, 3);
     } else {

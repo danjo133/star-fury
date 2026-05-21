@@ -37,11 +37,14 @@ export class SIDSequencer {
   private synth: SIDSynth;
   private song: Song | null = null;
   private playing = false;
-  private intervalId: number | null = null;
 
   private currentArrangementIndex = 0;
   private currentRow = 0;
   private tickCounter = 0;
+
+  // Accumulator-based timing (no setInterval)
+  private tickAccumulator = 0;
+  private tickInterval = 0; // seconds per tick
 
   // Per-voice state for effects
   private voiceFreqs: number[] = [0, 0, 0];
@@ -58,34 +61,41 @@ export class SIDSequencer {
     this.currentArrangementIndex = 0;
     this.currentRow = 0;
     this.tickCounter = 0;
+    this.tickAccumulator = 0;
+
+    // Standard tracker: BPM / 2.5 = ticks per second (125 BPM = 50Hz PAL)
+    const ticksPerSecond = song.bpm / 2.5;
+    this.tickInterval = 1 / ticksPerSecond;
   }
 
   play(): void {
     if (!this.song || this.playing) return;
     this.playing = true;
-
-    // Calculate tick interval from BPM
-    // Standard tracker: BPM / 2.5 = ticks per second (125 BPM = 50Hz PAL)
-    const ticksPerSecond = this.song.bpm / 2.5;
-    const intervalMs = 1000 / ticksPerSecond;
-
-    this.intervalId = window.setInterval(() => this.tick(), intervalMs);
+    this.tickAccumulator = 0;
   }
 
   stop(): void {
     this.playing = false;
-    if (this.intervalId !== null) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
     this.synth.allNotesOff();
     this.currentArrangementIndex = 0;
     this.currentRow = 0;
     this.tickCounter = 0;
+    this.tickAccumulator = 0;
   }
 
   get isPlaying(): boolean {
     return this.playing;
+  }
+
+  /** Call this every frame with delta time in seconds */
+  update(dt: number): void {
+    if (!this.playing || !this.song) return;
+
+    this.tickAccumulator += dt;
+    while (this.tickAccumulator >= this.tickInterval) {
+      this.tickAccumulator -= this.tickInterval;
+      this.tick();
+    }
   }
 
   private tick(): void {

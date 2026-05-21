@@ -55,6 +55,9 @@ export class Game {
     // Clamp delta to prevent spiral of death
     if (delta > MAX_DELTA) delta = MAX_DELTA;
 
+    // Update music sequencer with real time (not fixed step) for smooth audio
+    this.audio.update(delta);
+
     this.accumulator += delta;
 
     // Fixed timestep updates

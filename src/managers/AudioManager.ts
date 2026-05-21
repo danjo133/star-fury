@@ -18,6 +18,9 @@ export class AudioManager {
   private sidSequencer: SIDSequencer | null = null;
   private currentTrack: MusicTrack | null = null;
 
+  // SFX deduplication: prevent same sound playing multiple times per frame
+  private playedThisFrame: Set<SoundType> = new Set();
+
   constructor() {}
 
   private ensureContext(): AudioContext {
@@ -42,6 +45,10 @@ export class AudioManager {
   }
 
   play(sound: SoundType): void {
+    // Deduplicate: only play each sound type once per frame
+    if (this.playedThisFrame.has(sound)) return;
+    this.playedThisFrame.add(sound);
+
     const ctx = this.ensureContext();
     const now = ctx.currentTime;
 
@@ -107,19 +114,19 @@ export class AudioManager {
   }
 
   private playPowerup(ctx: AudioContext, now: number): void {
-    const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.2, now + i * 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.1);
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(now + i * 0.05);
-      osc.stop(now + i * 0.05 + 0.1);
-    });
+    // Quick rising sweep — doesn't clash with music notes
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(1600, now + 0.15);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.connect(gain);
+    gain.connect(this.sfxGain!);
+    osc.start(now);
+    osc.stop(now + 0.2);
   }
 
   private playHit(ctx: AudioContext, now: number): void {
@@ -218,6 +225,16 @@ export class AudioManager {
     this.currentTrack = null;
     if (this.sidSequencer) {
       this.sidSequencer.stop();
+    }
+  }
+
+  /** Must be called every frame with delta time in seconds */
+  update(dt: number): void {
+    // Clear SFX deduplication for next frame
+    this.playedThisFrame.clear();
+
+    if (this.sidSequencer && this.musicPlaying) {
+      this.sidSequencer.update(dt);
     }
   }
 

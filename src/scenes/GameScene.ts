@@ -304,7 +304,7 @@ export class GameScene implements IScene {
       this.cleanup();
       const hasNext = this.levelManager.nextLevel();
       if (hasNext) {
-        this.player.fullReset();
+        this.player.levelReset();
         this.gameContainer.addChild(this.player.container);
         this.startLevel();
         this.audio.startMusic('game');
@@ -372,7 +372,6 @@ export class GameScene implements IScene {
           this.particleSystem.emitExplosion(event.x, event.y, COLORS.explosion, 'medium');
           const points = this.scoreManager.addKill(event.enemy.scoreValue);
           this.spawnScorePopup(event.x, event.y, points);
-          this.hitStopTimer = 0.02;
 
           // Check if entire wave group is eliminated
           const waveCleared = this.spawnSystem.notifyEnemyKilled(event.enemy);
