@@ -1,9 +1,14 @@
+import { TouchManager } from './TouchManager';
+
 export class InputManager {
   private keys: Map<string, boolean> = new Map();
   private justPressed: Map<string, boolean> = new Map();
   private gamepad: Gamepad | null = null;
+  private touch: TouchManager;
 
   constructor() {
+    this.touch = new TouchManager();
+
     window.addEventListener('keydown', this.onKeyDown.bind(this));
     window.addEventListener('keyup', this.onKeyUp.bind(this));
     window.addEventListener('gamepadconnected', (e) => {
@@ -12,6 +17,14 @@ export class InputManager {
     window.addEventListener('gamepaddisconnected', () => {
       this.gamepad = null;
     });
+  }
+
+  get isMobile(): boolean {
+    return this.touch.isMobile;
+  }
+
+  attachCanvas(canvas: HTMLCanvasElement): void {
+    this.touch.attach(canvas);
   }
 
   private onKeyDown(e: KeyboardEvent): void {
@@ -37,30 +50,31 @@ export class InputManager {
 
   clearFrame(): void {
     this.justPressed.clear();
+    this.touch.clearFrame();
   }
 
   get up(): boolean {
-    return this.isHeld('ArrowUp') || this.isHeld('KeyW') || this.getGamepadAxis(1) < -0.3;
+    return this.isHeld('ArrowUp') || this.isHeld('KeyW') || this.getGamepadAxis(1) < -0.3 || this.touch.up;
   }
 
   get down(): boolean {
-    return this.isHeld('ArrowDown') || this.isHeld('KeyS') || this.getGamepadAxis(1) > 0.3;
+    return this.isHeld('ArrowDown') || this.isHeld('KeyS') || this.getGamepadAxis(1) > 0.3 || this.touch.down;
   }
 
   get left(): boolean {
-    return this.isHeld('ArrowLeft') || this.isHeld('KeyA') || this.getGamepadAxis(0) < -0.3;
+    return this.isHeld('ArrowLeft') || this.isHeld('KeyA') || this.getGamepadAxis(0) < -0.3 || this.touch.left;
   }
 
   get right(): boolean {
-    return this.isHeld('ArrowRight') || this.isHeld('KeyD') || this.getGamepadAxis(0) > 0.3;
+    return this.isHeld('ArrowRight') || this.isHeld('KeyD') || this.getGamepadAxis(0) > 0.3 || this.touch.right;
   }
 
   get shoot(): boolean {
-    return this.isHeld('Space') || this.isHeld('KeyZ') || this.getGamepadButton(0);
+    return this.isHeld('Space') || this.isHeld('KeyZ') || this.getGamepadButton(0) || this.touch.shoot;
   }
 
   get confirm(): boolean {
-    return this.isJustPressed('Space') || this.isJustPressed('Enter') || this.getGamepadButton(0);
+    return this.isJustPressed('Space') || this.isJustPressed('Enter') || this.getGamepadButton(0) || this.touch.confirm;
   }
 
   private getGamepadAxis(axis: number): number {
@@ -78,5 +92,6 @@ export class InputManager {
   destroy(): void {
     window.removeEventListener('keydown', this.onKeyDown.bind(this));
     window.removeEventListener('keyup', this.onKeyUp.bind(this));
+    this.touch.destroy();
   }
 }

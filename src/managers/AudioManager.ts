@@ -228,14 +228,9 @@ export class AudioManager {
     }
   }
 
-  /** Must be called every frame with delta time in seconds */
-  update(dt: number): void {
-    // Clear SFX deduplication for next frame
+  /** Must be called every frame — only handles SFX deduplication reset */
+  update(_dt: number): void {
     this.playedThisFrame.clear();
-
-    if (this.sidSequencer && this.musicPlaying) {
-      this.sidSequencer.update(dt);
-    }
   }
 
   setMasterVolume(volume: number): void {

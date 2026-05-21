@@ -42,9 +42,12 @@ export class SIDSequencer {
   private currentRow = 0;
   private tickCounter = 0;
 
-  // Accumulator-based timing (no setInterval)
-  private tickAccumulator = 0;
-  private tickInterval = 0; // seconds per tick
+  // Independent scheduler (decoupled from frame rate)
+  private schedulerTimerId: number | null = null;
+  private readonly SCHEDULER_INTERVAL = 10;  // ms — how often the scheduler runs
+  private readonly LOOK_AHEAD = 0.05;        // seconds — how far ahead to schedule notes
+  private tickInterval = 0;                   // seconds per tick
+  private nextTickTime = 0;                   // audio context time for next tick
 
   // Per-voice state for effects
   private voiceFreqs: number[] = [0, 0, 0];
@@ -61,7 +64,6 @@ export class SIDSequencer {
     this.currentArrangementIndex = 0;
     this.currentRow = 0;
     this.tickCounter = 0;
-    this.tickAccumulator = 0;
 
     // Standard tracker: BPM / 2.5 = ticks per second (125 BPM = 50Hz PAL)
     const ticksPerSecond = song.bpm / 2.5;
@@ -71,34 +73,47 @@ export class SIDSequencer {
   play(): void {
     if (!this.song || this.playing) return;
     this.playing = true;
-    this.tickAccumulator = 0;
+    this.nextTickTime = this.synth.currentTime;
+
+    // Start independent scheduler — runs at ~100Hz, schedules 50ms ahead
+    this.schedulerTimerId = window.setInterval(() => this.schedule(), this.SCHEDULER_INTERVAL);
   }
 
   stop(): void {
     this.playing = false;
+    if (this.schedulerTimerId !== null) {
+      clearInterval(this.schedulerTimerId);
+      this.schedulerTimerId = null;
+    }
     this.synth.allNotesOff();
     this.currentArrangementIndex = 0;
     this.currentRow = 0;
     this.tickCounter = 0;
-    this.tickAccumulator = 0;
   }
 
   get isPlaying(): boolean {
     return this.playing;
   }
 
-  /** Call this every frame with delta time in seconds */
-  update(dt: number): void {
-    if (!this.playing || !this.song) return;
-
-    this.tickAccumulator += dt;
-    while (this.tickAccumulator >= this.tickInterval) {
-      this.tickAccumulator -= this.tickInterval;
-      this.tick();
-    }
+  /** No-op — music scheduling is fully independent from the game loop */
+  update(_dt: number): void {
+    // Intentionally empty. The scheduler runs on its own timer.
   }
 
-  private tick(): void {
+  /**
+   * Internal scheduler — called every SCHEDULER_INTERVAL ms.
+   * Schedules all ticks whose time falls within the look-ahead window.
+   */
+  private schedule(): void {
+    if (!this.playing || !this.song) return;
+
+    const deadline = this.synth.currentTime + this.LOOK_AHEAD;
+    while (this.nextTickTime < deadline) {
+      this.tick(this.nextTickTime);
+      this.nextTickTime += this.tickInterval;
+    }
+  }
+  private tick(time: number): void {
     if (!this.song) return;
 
     const pattern = this.getCurrentPattern();
@@ -106,7 +121,7 @@ export class SIDSequencer {
 
     // Process row on tick 0
     if (this.tickCounter === 0) {
-      this.processRow(pattern);
+      this.processRow(pattern, time);
     }
 
     // Process effects every tick
@@ -137,7 +152,7 @@ export class SIDSequencer {
     return this.song.patterns[patternIndex] ?? null;
   }
 
-  private processRow(pattern: Pattern): void {
+  private processRow(pattern: Pattern, time: number): void {
     const row = pattern.rows[this.currentRow];
     if (!row) return;
 
@@ -149,7 +164,7 @@ export class SIDSequencer {
 
       if (event.note === '---') {
         // Note off
-        voice.noteOff();
+        voice.noteOff(time);
       } else if (event.note) {
         // New note
         const freq = noteToFreq(event.note);
@@ -159,7 +174,7 @@ export class SIDSequencer {
         const volume = event.volume ?? 0.25;
         const pw = event.pulseWidth ?? 0.5;
 
-        voice.noteOn(freq, waveform, adsr, volume, pw);
+        voice.noteOn(freq, waveform, adsr, volume, pw, time);
 
         // Setup arpeggio if needed
         if (event.effect?.type === 'arpeggio') {

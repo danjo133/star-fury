@@ -41,6 +41,7 @@ export class Game {
   start(): void {
     this.running = true;
     this.lastTime = performance.now();
+    this.input.attachCanvas(this.app.canvas);
     this.showMenu();
     this.app.ticker.add(() => this.gameLoop());
   }

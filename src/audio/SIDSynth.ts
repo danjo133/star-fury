@@ -132,7 +132,7 @@ export class SIDVoice {
     this.gainNode.gain.linearRampToValueAtTime(0, t + this.currentAdsr.release);
 
     // Stop oscillators after release
-    const stopTime = now + this.currentAdsr.release + 0.01;
+    const stopTime = t + this.currentAdsr.release + 0.01;
 
     if (this.oscillator) {
       this.oscillator.stop(stopTime);
@@ -188,12 +188,11 @@ export class SIDVoice {
    * Emulate pulse wave with variable duty cycle using two sawtooth oscillators
    * Phase-offset technique: two saws at same freq, one inverted, offset creates pulse
    */
-  private startPulseWave(freq: number, width: number): void {
+  private startPulseWave(freq: number, width: number, time?: number): void {
     this.pulseWidth = width;
-    const now = this.ctx.currentTime;
+    const t = time ?? this.ctx.currentTime;
 
     // Use a periodic wave to approximate pulse width modulation
-    // Create a custom wave that mimics a pulse with the given duty cycle
     const harmonics = 32;
     const real = new Float32Array(harmonics + 1);
     const imag = new Float32Array(harmonics + 1);
@@ -211,7 +210,7 @@ export class SIDVoice {
     this.pulseOsc1.setPeriodicWave(wave);
     this.pulseOsc1.frequency.value = freq;
     this.pulseOsc1.connect(this.filterNode);
-    this.pulseOsc1.start(now);
+    this.pulseOsc1.start(t);
   }
 
   destroy(): void {
@@ -245,6 +244,10 @@ export class SIDSynth {
 
   getVoice(index: number): SIDVoice {
     return this.voices[index];
+  }
+
+  get currentTime(): number {
+    return this.ctx.currentTime;
   }
 
   set volume(v: number) {
